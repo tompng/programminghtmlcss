@@ -1,9 +1,125 @@
+const baseStyle = `
+input {display: none;}
+input:checked {
+  display: inline;
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+input:checked:before {
+  background: white;
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
+  text-align: center;
+  font-size: 20px;
+  content: attr(value);
+}
+input[name="state"]:after,
+input[name="pc"]:after,
+input[name="_pc"]:after,
+input[name="ptr"]:after,
+input[name="_ptr"]:after,
+input[name="current"]:after {
+  position: absolute;
+  content: attr(name);
+}
+div#mem{border: 1px solid silver;}
+input[name="state"], input[name="state"]:before{width: 120px;}
+input[name="state"]:before{font-size:16px;}
+input[name="state"][value="0"]:before{content:"start";}
+input[name="state"][value="1"]:before{content:"jump";}
+input[name="state"][value="2"]:before{content:"after";}
+input[name="state"][value="3"]:before{content:"memRead";}
+input[name="state"][value="4"]:before{content:"memReadInc";}
+input[name="state"][value="5"]:before{content:"memReadDec";}
+input[name="state"][value="6"]:before{content:"memWrite";}
+input[name="state"][value="7"]:before{content:"pcReadInc";}
+input[name="state"][value="8"]:before{content:"pcWrite";}
+input[name="state"][value="9"]:before{content:"ptrReadInc";}
+input[name="state"][value="10"]:before{content:"ptrReadDec";}
+input[name="state"][value="11"]:before{content:"ptrWrite";}
+input[name="state"][value="12"]:before{content:"input";}
+input[name="state"][value="13"]:before{content:"output";}
+
+label{
+  display: none;
+  position:absolute;
+  z-index: 100;
+  left: 5%;
+  top: 300px;
+  width: 90%;
+  height: 200px;
+  text-align: center;
+  font-size: 40px;
+  line-height: 200px;
+  background: silver;
+  border-radius: 20px;
+}
+label:after {
+  position: absolute;
+  left: 0; top: 0;
+  width: 100%; height:100%;
+  content: 'click here'
+}
+#input, #output{
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+  text-align: center;
+}
+#output div {
+  text-align: center;
+  line-height: 80px;
+  height: 80px;
+  font-size: 64px;
+}
+#output div:before {
+  font-size: 0.75em;
+  content: 'output:'
+}
+#input label, #output label {
+  display: inline-block;
+  opacity: 1;
+  position: relative;
+  text-align: center;
+  font-size: 60px;
+  line-height: 80px;
+  background: white;
+  left: auto;
+  top: auto;
+  border-radius: 0;
+  height: 80px;
+  width: 80px;
+}
+#input label.ok, #output label.ok {
+  border-radius: 8px;
+  font-size: 40px;
+  width: 300px;
+  background: #eee;
+}
+#input div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+#input:before {
+  content: 'input';
+}
+#input label:before, #output label:before, #input label:after, #output label:after {
+  content: none;
+}
+`
 
 const ptrId = 'c'
 function ptrName(idx = 0) { return `ptr${idx}` }
 function ptrValueName(idx = 0, value = 0) { return `ptr${idx}-${value}` }
 function currentValueName(value = 0) { return `c${value}` }
-
 
 function createRadios(n, name) {
   return sequence(n).map(
@@ -59,17 +175,19 @@ function builder(progSize, memSize) {
     createLabels(progSize, '_pc'),
     createLabels(memSize, 'ptr'),
     createLabels(memSize, '_ptr'),
-    `<div id="output"><div></div><label for="state${State.after}">ok</label></div>`,
+    `<div id="output"><div></div><label class="ok" for="state${State.after}">ok</label></div>`,
     '<div id="input">',
+    '<div class="keys">',
     sequence(byteSize).map(v => `<label for="current${v}">${v.toString(16)}</label>`).join(''),
-    `<label for="state${State.memWrite}">ok</label>`,
+    '</div>',
+    `<label class="ok" for="state${State.memWrite}">ok</label>`,
     '</div>',
     '</div>'
   ].join('\n')
   const rule = new Rule(progSize, memSize)
   return { html, rule }
 }
-function generate(code = '+[,.[-]+]', memSize = 8) {
+function generate(code, memSize = 8) {
   const operations = parseBF(code)
   const progSize = operations.length + 1
   const { html, rule } = builder(progSize, memSize)
@@ -101,7 +219,7 @@ function generate(code = '+[,.[-]+]', memSize = 8) {
   }
   rule.add({ state: State.input }, '#input', 'display:block')
   addBFRules(rule, operations)
-  return ['<style>', rule.toCSS(), '</style>', html].join('\n')
+  return ['<html><head><style>', baseStyle, rule.toCSS(), '</style></style></head><body>', html, '</body>'].join('\n')
 }
 
 function priorityCSS(priority) {
@@ -110,7 +228,6 @@ function priorityCSS(priority) {
 
 function addBFRules(rule, operations) {
   console.log(operations)
-  rule.debug = true
   rule.add({ state: State.pcWrite }, `[for="state${State.start}"]`, priorityCSS(-10))
   operations.forEach((op, pc) => {
     switch(op[0]) {
@@ -198,15 +315,11 @@ function parseBF(code) {
 }
 class Rule {
   styles = []
-  debug = false
   constructor(progSize, memSize) {
     this.progSize = progSize
     this.memSize = memSize
   }
   add({ state, pc, _pc, ptr, _ptr, current }, selector, style = 'display: block;') {
-    if (this.debug) {
-      console.log(JSON.parse(JSON.stringify({ state, pc, _pc, ptr, _ptr, current, selector, style })))
-    }
     const { progSize, memSize } = this
     let idx = -1
     const selectors = []
@@ -236,7 +349,6 @@ class Rule {
       const diff = stateSize + 2 * progSize + 2 * memSize + byteSize - idx
       selectors.push(`${new Array(diff).fill('+*').join('')}`) 
     }
-    if (this.debug) console.log(selectors.join('') + ' ' + selector)
     this.styles.push([selectors.join('') + ' ' + selector, style])
   }
   toCSS() {
