@@ -268,7 +268,8 @@ function addBFRules(rule, operations) {
         rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
         break
       case '.':
-        rule.add({ pc, state: State.start }, `[for="state${State.output}"]`)
+        rule.add({ pc, state: State.start }, `[for="state${State.memRead}"]`)
+        rule.add({ pc, state: State.memRead }, `[for="state${State.output}"]`, priorityCSS(-1))
         rule.add({ pc, state: State.after }, `[for="state${State.pcReadNext}"]`, priorityCSS(-1))
         rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
         break
