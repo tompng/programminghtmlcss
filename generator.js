@@ -31,26 +31,39 @@ function sequence(n) {
   return [...new Array(n)].map((_, v) => v)
 }
 
-const ByteSize = 16
-const State = { none: 0, read: 1, readDec: 2, readInc: 3, write: 4 }
-function builder(stateSize, progSize, ptrSize) {
+const byteSize = 16
+const State = {
+  none: 0,
+  read: 1, readDec: 2, readInc: 3, write: 4,
+  input: 5, output: 6,
+  before: 7, after: 8
+}
+const stateSize = Object.keys(State).length
+function builder(progSize, ptrSize) {
   const html = [
     [
       createRadios(stateSize, 'state'),
       createRadios(progSize, 'pc'),
+      createRadios(progSize, '_pc'),
       createRadios(ptrSize, 'ptr'),
-      createRadios(ByteSize, 'current'),
+      createRadios(ptrSize, '_ptr'),
+      createRadios(byteSize, 'current'),
     ].join('').replace(/\n/g, '') + '<div id="mem">',
-    sequence(ptrSize).map(ptr => createRadioLabels(ByteSize, `v${ptr}-`, [`v${ptr}-`, 0], ['current', 0], ['current', -1], ['current', +1])).join('\n'),
+    sequence(ptrSize).map(ptr => createRadioLabels(byteSize, `v${ptr}-`, [`v${ptr}-`, 0], ['current', 0], ['current', -1], ['current', +1])).join('\n'),
+    createLabels(stateSize, 'state'),
+    createLabels(progSize, 'pc'),
+    createLabels(progSize, '_pc'),
+    createLabels(ptrSize, 'ptr'),
+    createLabels(ptrSize, '_ptr'),
     '</div>'
   ].join('\n')
-  const rule = new Rule(stateSize, progSize, ptrSize)
+  const rule = new Rule(progSize, ptrSize)
   return { html, rule }
 }
-function generate(stateSize = 5, progSize = 8, ptrSize = 8) {
-  const { html, rule } = builder(stateSize, progSize, ptrSize)
+function generate(progSize = 8, ptrSize = 8) {
+  const { html, rule } = builder(progSize, ptrSize)
   for (let ptr of sequence(ptrSize)) {
-    for (let value of sequence(ByteSize)) {
+    for (let value of sequence(byteSize)) {
       rule.add({
         state: State.write,
         ptr,
@@ -70,23 +83,23 @@ function generate(stateSize = 5, progSize = 8, ptrSize = 8) {
   }
   return ['<style>', rule.toCSS(), '</style>', html].join('\n')
 }
-
 class Rule {
   styles = []
-  constructor(stateSize, progSize, ptrSize) {
-    this.stateSize = stateSize
+  constructor(progSize, ptrSize) {
     this.progSize = progSize
     this.ptrSize = ptrSize
   }
-  add({ state, pc, ptr, current }, selector, style = 'display: block;') {
-    const { stateSize, progSize, ptrSize } = this
+  add({ state, pc, _pc, ptr, _ptr, current }, selector, style = 'display: block;') {
+    const { progSize, ptrSize } = this
     let idx = -1
     const selectors = []
     const positions = [
       [0, 'state', state],
       [stateSize, 'pc', pc],
-      [stateSize + progSize, 'ptr', ptr],
-      [stateSize + progSize + ptrSize, 'c', current]
+      [stateSize + progSize, '_pc', _pc],
+      [stateSize + progSize * 2, 'ptr', ptr],
+      [stateSize + progSize * 2 + ptrSize, '_ptr', _ptr],
+      [stateSize + progSize * 2 + ptrSize * 2, 'c', current]
     ]
     for (const [offset, prefix, value] of positions) {
       if (value == null) continue
@@ -103,7 +116,7 @@ class Rule {
     if (idx === -1) {
       selectors.push('#mem')
     } else {
-      const diff = stateSize + progSize + ptrSize + ByteSize - idx
+      const diff = stateSize + 2 * progSize + 2 * ptrSize + byteSize - idx
       selectors.push(`${new Array(diff).fill('+*').join('')}`) 
     }
     this.styles.push([selectors.join('') + ' ' + selector, style])
