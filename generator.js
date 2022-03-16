@@ -20,7 +20,7 @@ function createRadioLabels(n, name, ...labelNameAdds) {
 }
 
 function createLabels(n, name) {
-  return sequence(n).map((_, value) => `<label for="${name}${value}></label>"`).join('\n')
+  return sequence(n).map((_, value) => `<label for="${name}${value}"></label>`).join('\n')
 }
 
 function createRadio(name, value, checked = false) {
@@ -55,6 +55,11 @@ function builder(progSize, ptrSize) {
     createLabels(progSize, '_pc'),
     createLabels(ptrSize, 'ptr'),
     createLabels(ptrSize, '_ptr'),
+    `<div id="output"><div></div><label for="state${State.after}">ok</label></div>`,
+    '<div id="input">',
+    sequence(byteSize).map(v => `<label for="current${v}">${v.toString(16)}</label>`).join(''),
+    `<label for="state${State.write}">ok</label>`,
+    '</div>',
     '</div>'
   ].join('\n')
   const rule = new Rule(progSize, ptrSize)
@@ -69,18 +74,19 @@ function generate(progSize = 8, ptrSize = 8) {
         ptr,
         current: value
       }, `#v${ptr}-${value}:not(:checked)+*`, 'display: block;')
-      rule.add({
-        state: State.read,
-        ptr,
-        current: ~value
-      }, `#v${ptr}-${value}:checked+*+*`, 'display: block;')
       ;[State.read, State.readDec, State.readInc].forEach((state, i) => {
         const diff = [0, -1, 1][i]
         const selector = `#v${ptr}-${value}:checked${new Array(i + 2).fill('+*').join('')}`
-        rule.add({ state, ptr, current: ~(value + diff) }, selector)  
+        rule.add({ state, ptr, current: ~(value + diff) }, selector)
       })
+      rule
     }
   }
+  rule.add({ state: State.output }, '#output', 'display:block;')
+  for (let value of sequence(byteSize)) {
+    rule.add({ state: State.output, current: value }, '#output div:after', `content: ${JSON.stringify(value.toString(16))}`)
+  }
+  rule.add({ state: State.input }, '#input', 'display:block')
   return ['<style>', rule.toCSS(), '</style>', html].join('\n')
 }
 class Rule {

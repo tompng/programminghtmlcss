@@ -47,6 +47,31 @@ label:before{
   content: attr(for);
   display: block;
 }
+#input, #output{
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: white;
+}
+#output div {
+  text-align: center;
+  line-height: 40px;
+  height: 40px;
+  font-size: 40px;
+}
+#input label, #output label {
+  display: inline-block;
+  position: relative;
+  text-align: center;
+  font-size: 60px;
+  width: 80px;
+}
+#input label:before, #output label:before {
+  content: none
+}
 </style>
 <body>
 <script>
