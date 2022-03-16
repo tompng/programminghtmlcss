@@ -89,6 +89,38 @@ function generate(progSize = 8, ptrSize = 8) {
   rule.add({ state: State.input }, '#input', 'display:block')
   return ['<style>', rule.toCSS(), '</style>', html].join('\n')
 }
+
+function parseBF(code) {
+  const ops = []
+  const stack = []
+  const jump = new Map()
+  for (const op of code) {
+    switch(op) {
+      case '[':
+        stack.push(ops.length)
+        ops.push(op)
+        break
+      case ']':
+        if (stack.length === 0) throw 'error'
+        const idx = stack.pop()
+        jump.set(ops.length, idx)
+        ops.push(op)
+        break
+      case '+':
+      case '-':
+      case '>':
+      case '<':
+      case '.':
+      case ',':
+        ops.push(op)
+    }
+  }
+  jump.forEach((e, s) => {
+    ops[s] = ['[', e]
+    ops[e] = [']', s]
+  })
+  return ops
+}
 class Rule {
   styles = []
   constructor(progSize, ptrSize) {
