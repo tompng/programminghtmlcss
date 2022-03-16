@@ -6,11 +6,24 @@
   memory size: <input type="number" value="8">
 </div>
 <input type="button" onclick="create()" value="create">
+<div class="links"></div>
 <script>
-  document.body.querySelector('textarea').value = ',>,[-<[->>+>+<<<]>>[-<<+>>]<]>>.'
+  const bfMultiply = 'Multiply\n,>,[-<[->>+>+<<<]>>[-<<+>>]<]>>.'
+  const textarea = document.querySelector('textarea')
+  textarea.value = bfMultiply
+  let prevObjectURL = null
+  const links = document.querySelector('.links')
+  textarea.onchange = () => { links.innerHTML = '' }
   function create() {
-    const bf = document.querySelector('textarea').value
+    const bf = textarea.value
     const size = Number(document.querySelector('input[type="number"]').value)
-    document.body.innerHTML = generate(bf, size || 8)
+    const html = generate(bf, size || 8)
+    const blob = new Blob([html], { type: 'text/html' })
+    if (prevObjectURL) URL.revokeObjectURL(prevObjectURL)
+    prevObjectURL = URL.createObjectURL(blob)
+    links.innerHTML = `
+      <a download="program.html" href="${prevObjectURL}">download</a>
+      <a target="_blank" href="${prevObjectURL}">open in new tab</a>
+    `
   }
 </script>
