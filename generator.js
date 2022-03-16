@@ -33,7 +33,7 @@ function sequence(n) {
 
 const byteSize = 16
 const states = [
-  'start', 'jump1', 'jump2', 'after',
+  'start', 'jump', 'after',
   'memRead', 'memReadInc', 'memReadDec', 'memWrite',
   'pcReadNext', 'pcWrite',
   'ptrReadInc', 'ptrReadDec', 'ptrWrite',
@@ -116,12 +116,12 @@ function addBFRules(rule, operations) {
     switch(op[0]) {
       case '[':
         rule.add({ pc, state: State.start }, `[for="state${State.memRead}"]`)
-        rule.add({ pc, state: State.memRead }, `[for="state${State.jump1}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.jump1, _pc: ~pc }, `[for="_pc${pc}"]`)
-        rule.add({ pc, state: State.jump1, _pc: pc }, `[for="state${State.jump2}"]`)
-        rule.add({ pc, state: State.jump2, _pc: pc }, `[for="_pc${pc + 1}"]`, priorityCSS(-2))
-        rule.add({ pc, state: State.jump2, _pc: pc, current: 0 }, `[for="_pc${op[1] + 1}"]`, priorityCSS(-2))
-        rule.add({ pc, state: State.jump2, _pc: ~pc }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.memRead }, `[for="state${State.jump}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.jump, _pc: ~pc }, `[for="_pc${pc}"]`)
+        rule.add({ pc, state: State.jump, _pc: pc }, `[for="state${State.after}"]`)
+        rule.add({ pc, state: State.after, _pc: pc }, `[for="_pc${pc + 1}"]`, priorityCSS(-2))
+        rule.add({ pc, state: State.after, _pc: pc, current: 0 }, `[for="_pc${op[1] + 1}"]`, priorityCSS(-2))
+        rule.add({ pc, state: State.after, _pc: ~pc }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
         break
       case ']':
         rule.add({ pc, state: State.start }, `[for="pc${op[1]}"]`)

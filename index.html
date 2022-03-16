@@ -1,15 +1,15 @@
 <script src='generator.js'></script>
 <style>
-input[type=radio] {
+input {
   display: none
 }
-input[type=radio]:checked {
+input:checked {
   display: inline;
   position: relative;
   width: 40px;
   height: 40px;
 }
-input[type=radio]:checked:before {
+input:checked:before {
   background: white;
   position: absolute;
   width: 40px;
@@ -19,22 +19,32 @@ input[type=radio]:checked:before {
   font-size: 20px;
   content: attr(value);
 }
-input[type=radio][name="pc"]:checked:after {
+input[name="state"]:after,
+input[name="pc"]:after,
+input[name="_pc"]:after,
+input[name="ptr"]:after,
+input[name="_ptr"]:after,
+input[name="current"]:after {
   position: absolute;
-  content: 'pc'
+  content: attr(name);
 }
-input[type=radio][name="ptr"]:checked:after {
-  position: absolute;
-  content: 'ptr'
-}
-input[type=radio][name="current"]:checked:after {
-  position: absolute;
-  content: 'current'
-}
-input[type=radio][name="state"]:checked:after {
-  position: absolute;
-  content: 'state'
-}
+div#mem{border: 1px solid silver;}
+input[name="state"], input[name="state"]:before{width: 120px;}
+input[name="state"][value="0"]:before{content:"start";}
+input[name="state"][value="1"]:before{content:"jump";}
+input[name="state"][value="2"]:before{content:"after";}
+input[name="state"][value="3"]:before{content:"memRead";}
+input[name="state"][value="4"]:before{content:"memReadInc";}
+input[name="state"][value="5"]:before{content:"memReadDec";}
+input[name="state"][value="6"]:before{content:"memWrite";}
+input[name="state"][value="7"]:before{content:"pcReadInc";}
+input[name="state"][value="8"]:before{content:"pcWrite";}
+input[name="state"][value="9"]:before{content:"ptrReadInc";}
+input[name="state"][value="10"]:before{content:"ptrReadDec";}
+input[name="state"][value="11"]:before{content:"ptrWrite";}
+input[name="state"][value="12"]:before{content:"input";}
+input[name="state"][value="13"]:before{content:"output";}
+
 label{
   display: none;
   position:absolute;
