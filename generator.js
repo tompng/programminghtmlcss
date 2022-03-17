@@ -136,7 +136,7 @@ function createRadioLabels(n, name, ...labelNameAdds) {
 }
 
 function createLabels(n, name) {
-  return sequence(n).map((_, value) => `<label for="${name}${value}"></label>`).join('\n')
+  return sequence(n).map((_, value) => `<label id="L${name}${value}" for="${name}${value}"></label>`).join('\n')
 }
 
 function createRadio(name, value, checked = false) {
@@ -192,13 +192,13 @@ function generate(code, memSize = 8) {
   const progSize = operations.length + 1
   const { html, rule } = builder(progSize, memSize)
   for (let pc of sequence(progSize)) {
-    rule.add({ state: State.pcReadNext, pc, _pc: ~(pc + 1) }, `[for="_pc${pc + 1}"]:not(:checked)`)
-    rule.add({ state: State.pcWrite, pc: ~pc, _pc: pc }, `[for="pc${pc}"]:not(:checked)`)
+    rule.add({ state: State.pcReadNext, pc, _pc: ~(pc + 1) }, `#L_pc${pc + 1}:not(:checked)`)
+    rule.add({ state: State.pcWrite, pc: ~pc, _pc: pc }, `#Lpc${pc}:not(:checked)`)
   }
   for (let ptr of sequence(memSize)) {
-    rule.add({ state: State.ptrReadDec, ptr, _ptr: ~(ptr - 1) }, `[for="_ptr${ptr - 1}"]:not(:checked)`)
-    rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `[for="_ptr${ptr + 1}"]:not(:checked)`)
-    rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `[for="ptr${ptr}"]:not(:checked)`)
+    rule.add({ state: State.ptrReadDec, ptr, _ptr: ~(ptr - 1) }, `#L_ptr${ptr - 1}:not(:checked)`)
+    rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `#L_ptr${ptr + 1}:not(:checked)`)
+    rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `#Lptr${ptr}:not(:checked)`)
     for (let value of sequence(byteSize)) {
       rule.add({
         state: State.memWrite,
@@ -228,56 +228,56 @@ function priorityCSS(priority) {
 
 function addBFRules(rule, operations) {
   console.log(operations)
-  rule.add({ state: State.pcWrite }, `[for="state${State.start}"]`, priorityCSS(-10))
+  rule.add({ state: State.pcWrite }, `#Lstate${State.start}`, priorityCSS(-10))
   operations.forEach((op, pc) => {
     switch(op[0]) {
       case '[':
-        rule.add({ pc, state: State.start }, `[for="state${State.memRead}"]`)
-        rule.add({ pc, state: State.memRead }, `[for="state${State.jump}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.jump, _pc: ~pc }, `[for="_pc${pc}"]`)
-        rule.add({ pc, state: State.jump, _pc: pc }, `[for="state${State.after}"]`)
-        rule.add({ pc, state: State.after, _pc: pc }, `[for="_pc${pc + 1}"]`, priorityCSS(-2))
-        rule.add({ pc, state: State.after, _pc: pc, current: 0 }, `[for="_pc${op[1] + 1}"]`, priorityCSS(-2))
-        rule.add({ pc, state: State.after, _pc: ~pc }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.start }, `#Lstate${State.memRead}`)
+        rule.add({ pc, state: State.memRead }, `#Lstate${State.jump}`, priorityCSS(-1))
+        rule.add({ pc, state: State.jump, _pc: ~pc }, `#L_pc${pc}`)
+        rule.add({ pc, state: State.jump, _pc: pc }, `#Lstate${State.after}`)
+        rule.add({ pc, state: State.after, _pc: pc }, `#L_pc${pc + 1}`, priorityCSS(-2))
+        rule.add({ pc, state: State.after, _pc: pc, current: 0 }, `#L_pc${op[1] + 1}`, priorityCSS(-2))
+        rule.add({ pc, state: State.after, _pc: ~pc }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case ']':
-        rule.add({ pc, state: State.start }, `[for="pc${op[1]}"]`)
+        rule.add({ pc, state: State.start }, `#Lpc${op[1]}`)
         break
       case '+':
-        rule.add({ pc, state: State.start }, `[for="state${State.memReadInc}"]`)
-        rule.add({ pc, state: State.memReadInc }, `[for="state${State.memWrite}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.memWrite }, `[for="state${State.pcReadNext}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.start }, `#Lstate${State.memReadInc}`)
+        rule.add({ pc, state: State.memReadInc }, `#Lstate${State.memWrite}`, priorityCSS(-1))
+        rule.add({ pc, state: State.memWrite }, `#Lstate${State.pcReadNext}`, priorityCSS(-1))
+        rule.add({ pc, state: State.pcReadNext }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case '-':
-        rule.add({ pc, state: State.start }, `[for="state${State.memReadDec}"]`)
-        rule.add({ pc, state: State.memReadDec }, `[for="state${State.memWrite}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.memWrite }, `[for="state${State.pcReadNext}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.start }, `#Lstate${State.memReadDec}`)
+        rule.add({ pc, state: State.memReadDec }, `#Lstate${State.memWrite}`, priorityCSS(-1))
+        rule.add({ pc, state: State.memWrite }, `#Lstate${State.pcReadNext}`, priorityCSS(-1))
+        rule.add({ pc, state: State.pcReadNext }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case '>':
-        rule.add({ pc, state: State.start }, `[for="state${State.ptrReadInc}"]`)
-        rule.add({ pc, state: State.ptrReadInc }, `[for="state${State.ptrWrite}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.ptrWrite }, `[for="state${State.pcReadNext}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.start }, `#Lstate${State.ptrReadInc}`)
+        rule.add({ pc, state: State.ptrReadInc }, `#Lstate${State.ptrWrite}`, priorityCSS(-1))
+        rule.add({ pc, state: State.ptrWrite }, `#Lstate${State.pcReadNext}`, priorityCSS(-1))
+        rule.add({ pc, state: State.pcReadNext }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case '<':
-        rule.add({ pc, state: State.start }, `[for="state${State.ptrReadDec}"]`)
-        rule.add({ pc, state: State.ptrReadDec }, `[for="state${State.ptrWrite}"]`)
-        rule.add({ pc, state: State.ptrWrite }, `[for="state${State.pcReadNext}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.start }, `#Lstate${State.ptrReadDec}`)
+        rule.add({ pc, state: State.ptrReadDec }, `#Lstate${State.ptrWrite}`)
+        rule.add({ pc, state: State.ptrWrite }, `#Lstate${State.pcReadNext}`, priorityCSS(-1))
+        rule.add({ pc, state: State.pcReadNext }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case '.':
-        rule.add({ pc, state: State.start }, `[for="state${State.memRead}"]`)
-        rule.add({ pc, state: State.memRead }, `[for="state${State.output}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.after }, `[for="state${State.pcReadNext}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.start }, `#Lstate${State.memRead}`)
+        rule.add({ pc, state: State.memRead }, `#Lstate${State.output}`, priorityCSS(-1))
+        rule.add({ pc, state: State.after }, `#Lstate${State.pcReadNext}`, priorityCSS(-1))
+        rule.add({ pc, state: State.pcReadNext }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case ',':
-        rule.add({ pc, state: State.start }, `[for="state${State.input}"]`)
-        rule.add({ pc, state: State.after }, `[for="state${State.memWrite}"]`)
-        rule.add({ pc, state: State.memWrite }, `[for="state${State.pcReadNext}"]`, priorityCSS(-1))
-        rule.add({ pc, state: State.pcReadNext }, `[for="state${State.pcWrite}"]`, priorityCSS(-1))
+        rule.add({ pc, state: State.start }, `#Lstate${State.input}`)
+        rule.add({ pc, state: State.after }, `#Lstate${State.memWrite}`)
+        rule.add({ pc, state: State.memWrite }, `#Lstate${State.pcReadNext}`, priorityCSS(-1))
+        rule.add({ pc, state: State.pcReadNext }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
     }
   })
