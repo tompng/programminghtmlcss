@@ -96,17 +96,13 @@ label:after {
   height: 80px;
   width: 80px;
 }
-#input label.ok, #output label.ok {
+#output label.ok {
   border-radius: 8px;
   font-size: 40px;
   width: 300px;
   background: #eee;
 }
-#input div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-}
+
 #input:before {
   content: 'input';
 }
@@ -155,13 +151,29 @@ const states = [
   'memRead', 'memReadInc', 'memReadDec', 'memWrite',
   'pcReadNext', 'pcWrite',
   'ptrReadInc', 'ptrReadDec', 'ptrWrite',
-  'input', 'output',
+  'input', 'output', 'writeKB'
 ]
 const State = {}
 states.forEach((name, index) => { State[name] = index })
+const normalKeys = [
+  '`1234567890-=',
+  'qwertyuiop[]\\',
+  'asdfghjkl;\'\n',
+  'zxcvbnm,./',
+  ' '
+]
+const shiftKeys = [
+  '~!@#$%^&*()_+',
+  'QWERTYUIOP{}|',
+  'ASDFGHJKL:"\n',
+  'ZXCVBNM<>?',
+  ' '
+]
 
 const stateSize = Object.keys(State).length
 function builder(progSize, memSize) {
+  const rule = new Rule(progSize, memSize)
+  const [kbhtml, kbstyle] = createKeyboard()
   const html = [
     [
       createRadios(stateSize, 'state'),
@@ -182,22 +194,69 @@ function builder(progSize, memSize) {
     createLabels(memSize, 'ptr'),
     createLabels(memSize, '_ptr'),
     `<div id="output"><div></div><label class="ok" for="state${State.after}">ok</label></div>`,
+    kbhtml,
+    '</div>'
+  ].join('\n')
+  return { html, rule, kbstyle }
+}
+function createKeyboard() {
+  const converts = { '\n': '⏎', '&': '&amp;', '<': '&lt;', '>': '&gt;', ' ': 'space' }
+  const styles = []
+  const keysHTML = [normalKeys, shiftKeys].map((lines, isShift) => {
+    const lineHTML = lines.map((line, h) => {
+      const html = [...line].map(key => {
+        const code = key.charCodeAt(0)
+        return `<label class="KL${code}" for="K${code}">${converts[key] ?? key}</label>`
+      }).join('')
+      if (h == 3) {
+        const shift = '<label class="KLshift" for="Kshift">shift</label>'
+        return `<div>${shift}${html}${shift}</div>`
+      } else if (h == 4) {
+        return `<div>${html}<label class="ok" for="writeKB">OK</label></div>`
+      } else {
+        return `<div>${html}</div>`
+      }
+    }).join('\n')
+    return [
+      `<div class="keyboard keyboard-${isShift ? 'shift' : 'normal'}">`,
+      lineHTML,
+      '</div>'
+    ].join('\n')
+  }).join('\n')
+  const html = [
+    '<div id="kb">',
+    sequence(128).map(v => `<input id="K${v}" name="key" type="radio">`).join(''),
     '<div id="input">',
-    '<div class="keys">',
-    sequence(halfByteSize).map(v => `<label for="cu${v}">${v.toString(16)}</label>`).join(''),
-    sequence(halfByteSize).map(v => `<label for="cl${v}">${v.toString(16)}</label>`).join(''),
+    '<input name="shift" id="Kshift" type="checkbox">',
+    keysHTML,
     '</div>',
-    `<label class="ok" for="state${State.memWrite}">ok</label>`,
+    '<div>',
+    sequence(halfByteSize).map(v => `<label for="cu${v}"></label>`).join(''),
+    sequence(halfByteSize).map(v => `<label for="cl${v}"></label>`).join(''),
     '</div>',
     '</div>'
   ].join('\n')
-  const rule = new Rule(progSize, memSize)
-  return { html, rule }
+  function nstring(s, n) { return [...new Array(n + 1)].join(s) }
+  styles.push('#input label{width: 32px;height: 32px;font-size:20px;line-height:32px;margin:4px;box-shadow: 0 0 1px gray}')
+  styles.push('#input #Kshift{width:0;height:0;position:absolute}')
+  styles.push('#input #Kshift:checked+.keyboard-normal{display:none;}')
+  styles.push('#input #Kshift:not(:checked)+*+.keyboard-shift{display:none;}')
+  styles.push('#input .KLshift{width: 64px;}')
+  styles.push('#input .KL32{width: 200px;}')
+  styles.push('#input .ok{font-size: 20px; width: 64px;background: #aac;}')
+  styles.push('#input .keyboard div{display:flex;justify-content:center;}')
+  for (const code of sequence(128)) {
+    styles.push(`#kb #K${code}:checked${nstring('+*', 128-code - 1)}+#input .KL${code}{background:gray;color:white;}`)
+  }
+  for (const code of sequence(128)) {
+    `#kb #id${code}:checked`
+  }
+  return [html, styles.join('\n')]
 }
 function generate(code, memSize = 8) {
   const operations = parseBF(code)
   const progSize = operations.length + 1
-  const { html, rule } = builder(progSize, memSize)
+  const { html, rule, kbstyle } = builder(progSize, memSize)
   for (let pc of sequence(progSize)) {
     rule.add({ state: State.pcReadNext, pc, _pc: ~(pc + 1) }, `#L_pc${pc + 1}:not(:checked)`)
     rule.add({ state: State.pcWrite, pc: ~pc, _pc: pc }, `#Lpc${pc}:not(:checked)`)
@@ -235,7 +294,7 @@ function generate(code, memSize = 8) {
   }
   rule.add({ state: State.input }, '#input')
   addBFRules(rule, operations)
-  return ['<html><head><style>', baseStyle, rule.toCSS(), createDesignStyle(), '</style></style></head><body>', html, '</body>'].join('\n')
+  return ['<html><head><meta charset="utf-8"><style>', baseStyle, kbstyle, rule.toCSS(), createDesignStyle(), '</style></style></head><body>', html, '</body>'].join('\n')
 }
 
 function priorityCSS(priority) {
