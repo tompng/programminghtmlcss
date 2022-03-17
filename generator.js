@@ -212,7 +212,7 @@ function createKeyboard() {
         const shift = '<label class="KLshift" for="Kshift">shift</label>'
         return `<div>${shift}${html}${shift}</div>`
       } else if (h == 4) {
-        return `<div>${html}<label class="ok" for="writeKB">OK</label></div>`
+        return `<div>${html}<label class="ok" for="state${State.writeKB}">OK</label></div>`
       } else {
         return `<div>${html}</div>`
       }
@@ -230,13 +230,12 @@ function createKeyboard() {
     '<input name="shift" id="Kshift" type="checkbox">',
     keysHTML,
     '</div>',
-    '<div>',
-    sequence(halfByteSize).map(v => `<label for="cu${v}"></label>`).join(''),
-    sequence(halfByteSize).map(v => `<label for="cl${v}"></label>`).join(''),
+    '<div id="kblabels">',
+    sequence(halfByteSize).map(v => `<label id="KLcu${v}" for="cu${v}"></label>`).join(''),
+    sequence(halfByteSize).map(v => `<label id="KLcl${v}" for="cl${v}"></label>`).join(''),
     '</div>',
     '</div>'
   ].join('\n')
-  function nstring(s, n) { return [...new Array(n + 1)].join(s) }
   styles.push('#input label{width: 32px;height: 32px;font-size:20px;line-height:32px;margin:4px;box-shadow: 0 0 1px gray}')
   styles.push('#input #Kshift{width:0;height:0;position:absolute}')
   styles.push('#input #Kshift:checked+.keyboard-normal{display:none;}')
@@ -246,13 +245,19 @@ function createKeyboard() {
   styles.push('#input .ok{font-size: 20px; width: 64px;background: #aac;}')
   styles.push('#input .keyboard div{display:flex;justify-content:center;}')
   for (const code of sequence(128)) {
-    styles.push(`#kb #K${code}:checked${nstring('+*', 128-code - 1)}+#input .KL${code}{background:gray;color:white;}`)
-  }
-  for (const code of sequence(128)) {
-    `#kb #id${code}:checked`
+    styles.push(`#kb #K${code}:checked${stringMult('+*', 128-code - 1)}+#input .KL${code}{background:gray;color:white;}`)
   }
   return [html, styles.join('\n')]
 }
+function stringMult(s, n) { return [...new Array(n + 1)].join(s) }
+function addKeyboardRules(rule) {
+  for (const code of sequence(128)) {
+    const base = `#kb #K${code}:checked${stringMult('+*', 128 - code)}+#kblabels`
+    rule.add({ state: State.writeKB, currentU: ~(code >> 4) }, `${base} #KLcu${code >> 4}`)
+    rule.add({ state: State.writeKB, currentL: ~(code & 0xf) }, `${base} #KLcl${code & 0xf}`)
+  }
+}
+
 function generate(code, memSize = 8) {
   const operations = parseBF(code)
   const progSize = operations.length + 1
@@ -280,9 +285,9 @@ function generate(code, memSize = 8) {
       rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+${prefix}cl${prevValue}`, priorityCSS(1))
       rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+${prefix}cu${prevValue}`)
       rule.add({ state: State.memReadDec, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
-      rule
     }
   }
+  rule.add({ state: State.writeKB }, `#Lstate${State.after}`)
   rule.add({ state: State.output }, '#output')
   for (let currentU of sequence(halfByteSize)) {
     for (let currentL of sequence(halfByteSize)) {
@@ -293,6 +298,7 @@ function generate(code, memSize = 8) {
     }
   }
   rule.add({ state: State.input }, '#input')
+  addKeyboardRules(rule)
   addBFRules(rule, operations)
   return ['<html><head><meta charset="utf-8"><style>', baseStyle, kbstyle, rule.toCSS(), createDesignStyle(), '</style></style></head><body>', html, '</body>'].join('\n')
 }
@@ -366,7 +372,6 @@ function createDesignStyle() {
   for (const name in State) {
     styles.push(`input[name="state"][value="${State[name]}"]:before{content:"${name}";}`)
   }
-
   return styles.join('\n')
 }
 
