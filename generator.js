@@ -125,11 +125,13 @@ function createRadios(n, name) {
   ).join('')
 }
 
-function createRadioLabels(n, radioNames, labelNameAdds) {
+function createRadioLabels(n, radioNames, labelIdPrefix, labelNameAdds) {
   return sequence(n).map((_, value) => {
     const radios = radioNames.map(([name, className]) => createRadio(name, value, value === 0, className))
-    const labels = labelNameAdds.map(([name, offset]) => `<label for="${name}${(value + offset + n) % n}"></label>`)
-    console.log(radios.join('') + labels.join(''))
+    const labels = labelNameAdds.map(([name, offset]) => {
+      const v = (value + offset + n) % n
+      return `<label id="${labelIdPrefix}${name}${v}" for="${name}${v}"></label>`
+    })
     return radios.join('') + labels.join('')
   }).join('\n')
 }
@@ -170,7 +172,7 @@ function builder(progSize, memSize) {
       createRadios(halfByteSize, 'cl'),
     ].join('').replace(/\n/g, '') + '<div id="mem">',
     sequence(memSize).map(ptr => {
-      const radioLabels = createRadioLabels(halfByteSize, [[`vu${ptr}-`, 'u'], [`vl${ptr}-`, 'l']], [[`vu${ptr}-`, 0], [`vl${ptr}-`, 0], ['cu', 0], ['cu', -1], ['cu', +1], ['cl', 0], ['cl', -1], ['cl', +1]])
+      const radioLabels = createRadioLabels(halfByteSize, [[`vu${ptr}-`, 'u'], [`vl${ptr}-`, 'l']], `L${ptr}`, [[`vu${ptr}-`, 0], [`vl${ptr}-`, 0], ['cu', 0], ['cu', -1], ['cu', +1], ['cl', 0], ['cl', -1], ['cl', +1]])
       return `<div class="m" id="m${ptr}">${radioLabels}</div>`
     }).join('\n'),
     createLabels(stateSize, 'state'),
@@ -207,16 +209,17 @@ function generate(code, memSize = 8) {
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
       const prevValue = (value + halfByteSize - 1) % halfByteSize
-      rule.add({ state: State.memWrite, ptr, currentU: value }, `#m${ptr} #vu${ptr}-${value}:not(:checked)+*+*`)
-      rule.add({ state: State.memWrite, ptr, currentL: value }, `#m${ptr} #vl${ptr}-${value}:not(:checked)+*+*`)
-      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*`)
-      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*`)
-      rule.add({ state: State.memReadInc, ptr, currentL: ~nextValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+*+*`, priorityCSS(1))
-      rule.add({ state: State.memReadInc, ptr, currentU: ~nextValue, currentL: 0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+*+*`)
-      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*`)
-      rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+*`, priorityCSS(1))
-      rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+*`)
-      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*`)
+      const prefix = `#L${ptr}`
+      rule.add({ state: State.memWrite, ptr, currentU: value }, `#m${ptr} #vu${ptr}-${value}:not(:checked)+*+${prefix}vu${ptr}-${value}`)
+      rule.add({ state: State.memWrite, ptr, currentL: value }, `#m${ptr} #vl${ptr}-${value}:not(:checked)+*+${prefix}vl${ptr}-${value}`)
+      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
+      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+${prefix}cl${value}`)
+      rule.add({ state: State.memReadInc, ptr, currentL: ~nextValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+*+${prefix}cl${nextValue}`, priorityCSS(1))
+      rule.add({ state: State.memReadInc, ptr, currentU: ~nextValue, currentL: 0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+*+${prefix}cu${nextValue}`)
+      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
+      rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+${prefix}cl${prevValue}`, priorityCSS(1))
+      rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+${prefix}cu${prevValue}`)
+      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
       rule
     }
   }
@@ -238,7 +241,6 @@ function priorityCSS(priority) {
 }
 
 function addBFRules(rule, operations) {
-  console.log(operations)
   rule.add({ state: State.pcWrite }, `#Lstate${State.start}`, priorityCSS(-10))
   operations.forEach((op, pc) => {
     switch(op[0]) {
