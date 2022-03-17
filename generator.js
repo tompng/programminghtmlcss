@@ -76,6 +76,7 @@ label:after {
   line-height: 80px;
   height: 80px;
   font-size: 64px;
+  white-space: pre;
 }
 #output div:before {
   font-size: 0.75em;
@@ -227,8 +228,9 @@ function generate(code, memSize = 8) {
   for (let currentU of sequence(halfByteSize)) {
     for (let currentL of sequence(halfByteSize)) {
       const code = (currentU << 4) | currentL
-      const content = code <= 32 || code >= 127 ? `"0x${currentU.toString(16)}${currentL.toString(16)}"` : JSON.stringify(String.fromCharCode(code))
-      rule.add({ state: State.output, currentU, currentL }, '#output div:after', `content: ${content}`)
+      const hex = `${currentU.toString(16)}${currentL.toString(16)}`
+      const content = code <= 32 || code >= 127 ? `0x${hex}` : `\\${hex}  (0x${hex})`
+      rule.add({ state: State.output, currentU, currentL }, '#output div:after', `content: "${content}"`)
     }
   }
   rule.add({ state: State.input }, '#input')
