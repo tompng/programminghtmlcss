@@ -1,23 +1,51 @@
 <meta charset="utf-8">  
 <script src='generator.js'></script>
 <body>
-<div>Braif*ck Code</div>
-<textarea></textarea>
+<h1>Braif*ck To HTML+CSS</h1>
+<select>
+  <option value="none">Examples: ---</option>
+  <option value="mult">Examples: Multiply</option>
+  <option value="echo" selected>Examples: Echo</option>
+  <option value="hello">Examples: Hello World</option>
+</select>
+<textarea style="width:100%;height:200px;"></textarea>
 <div>
   memory size: <input type="number" value="8">
 </div>
-<input type="button" onclick="create()" value="create">
+<input type="button" onclick="create()" value="Compile to HTML+CSS">
 <div class="links"></div>
 <script>
-  const bfMultiply = 'Multiply\n,>,[-<[->>+>+<<<]>>[-<<+>>]<]>>.'
+  const bfMultiply = 'Multiply CharCode\n,>,[-<[->>+>+<<<]>>[-<<+>>]<]>>.'
+  const bfHelloWorld = 'Hello World\n++++[->++++++<]>[-<+>>+++>++++<<]>.\n>+++++.+++++++..+++.<<<++++++++.\n[>>+<<--]>>-.>.+++.------.--------.'
+  const bfEchoNext = 'Echo Next Char\n+[>,+.<]'
+  const presetSelect = document.querySelector('select')
+  function getPreset(type) {
+    switch (presetSelect.value) {
+      case 'mult': return bfMultiply
+      case 'hello': return bfHelloWorld
+      case 'echo': return bfEchoNext
+    }
+  }
   const textarea = document.querySelector('textarea')
-  textarea.value = bfMultiply
-  let prevObjectURL = null
+  const memsizeInput = document.querySelector('input[type="number"]')
+  presetSelect.onchange = () => {
+    const code = getPreset(presetSelect.value)
+    if (code) {
+      reset()
+      textarea.value = code
+    }
+  }
   const links = document.querySelector('.links')
-  textarea.onchange = () => { links.innerHTML = '' }
+  const reset = () => { links.innerHTML = '' }
+  presetSelect.onchange()
+  let prevObjectURL = null
+  textarea.onchange = textarea.oninput = memsizeInput.onchange = memsizeInput.oninput = () => {
+    presetSelect.value = 'none'
+    reset()
+  }
   function create() {
     const bf = textarea.value
-    const size = Number(document.querySelector('input[type="number"]').value)
+    const size = Number(memsizeInput.value)
     const html = generate(bf, size || 8)
     const blob = new Blob([html], { type: 'text/html' })
     if (prevObjectURL) URL.revokeObjectURL(prevObjectURL)

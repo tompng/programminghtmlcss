@@ -134,7 +134,7 @@ function createRadioLabels(n, radioNames, labelIdPrefix, labelNameAdds) {
 }
 
 function createLabels(n, name) {
-  return sequence(n).map((_, value) => `<label id="L${name}${value}" for="${name}${value}"></label>`).join('\n')
+  return sequence(n).map((_, value) => `<label id="L${name}${value}" for="${name}${value}"></label>`).join('')
 }
 
 function createRadio(name, value, checked = false, className = null) {
