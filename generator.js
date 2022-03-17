@@ -263,13 +263,13 @@ function generate(code, memSize = 8) {
   const progSize = operations.length + 1
   const { html, rule, kbstyle } = builder(progSize, memSize)
   for (let pc of sequence(progSize)) {
-    rule.add({ state: State.pcReadNext, pc, _pc: ~(pc + 1) }, `#L_pc${pc + 1}:not(:checked)`)
-    rule.add({ state: State.pcWrite, pc: ~pc, _pc: pc }, `#Lpc${pc}:not(:checked)`)
+    rule.add({ state: State.pcReadNext, pc, _pc: ~(pc + 1) }, `#L_pc${pc + 1}`)
+    rule.add({ state: State.pcWrite, pc: ~pc, _pc: pc }, `#Lpc${pc}`)
   }
   for (let ptr of sequence(memSize)) {
-    rule.add({ state: State.ptrReadDec, ptr, _ptr: ~(ptr - 1) }, `#L_ptr${ptr - 1}:not(:checked)`)
-    rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `#L_ptr${ptr + 1}:not(:checked)`)
-    rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `#Lptr${ptr}:not(:checked)`)
+    rule.add({ state: State.ptrReadDec, ptr, _ptr: ~(ptr - 1) }, `#L_ptr${ptr - 1}`)
+    rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `#L_ptr${ptr + 1}`)
+    rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `#Lptr${ptr}`)
     // vu vl #Lvu #Lvl #cu-0 #cu-1 #cu+1 #cl-0 #cl-1 #cl+1
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
