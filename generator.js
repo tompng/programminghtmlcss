@@ -171,7 +171,7 @@ function builder(progSize, memSize) {
     ].join('').replace(/\n/g, '') + '<div id="mem">',
     sequence(memSize).map(ptr => {
       const radioLabels = createRadioLabels(halfByteSize, [[`vu${ptr}-`, 'u'], [`vl${ptr}-`, 'l']], [[`vu${ptr}-`, 0], [`vl${ptr}-`, 0], ['cu', 0], ['cu', -1], ['cu', +1], ['cl', 0], ['cl', -1], ['cl', +1]])
-      return `<div class="m">${radioLabels}</div>`
+      return `<div class="m" id="m${ptr}">${radioLabels}</div>`
     }).join('\n'),
     createLabels(stateSize, 'state'),
     createLabels(progSize, 'pc'),
@@ -207,16 +207,16 @@ function generate(code, memSize = 8) {
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
       const prevValue = (value + halfByteSize - 1) % halfByteSize
-      rule.add({ state: State.memWrite, ptr, currentU: value }, `#vu${ptr}-${value}:not(:checked)+*+*`)
-      rule.add({ state: State.memWrite, ptr, currentL: value }, `#vl${ptr}-${value}:not(:checked)+*+*`)
-      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#vu${ptr}-${value}:checked+*+*+*+*`)
-      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#vl${ptr}-${value}:checked+*+*+*+*+*+*`)
-      rule.add({ state: State.memReadInc, ptr, currentL: ~nextValue }, `#vl${ptr}-${value}:checked+*+*+*+*+*+*+*+*`, priorityCSS(1))
-      rule.add({ state: State.memReadInc, ptr, currentU: ~nextValue, currentL: 0 }, `#vu${ptr}-${value}:checked+*+*+*+*+*+*`)
-      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~0 }, `#vu${ptr}-${value}:checked+*+*+*+*`)
-      rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#vl${ptr}-${value}:checked+*+*+*+*+*+*+*`, priorityCSS(1))
-      rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#vu${ptr}-${value}:checked+*+*+*+*+*`)
-      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#vu${ptr}-${value}:checked+*+*+*+*`)
+      rule.add({ state: State.memWrite, ptr, currentU: value }, `#m${ptr} #vu${ptr}-${value}:not(:checked)+*+*`)
+      rule.add({ state: State.memWrite, ptr, currentL: value }, `#m${ptr} #vl${ptr}-${value}:not(:checked)+*+*`)
+      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*`)
+      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*`)
+      rule.add({ state: State.memReadInc, ptr, currentL: ~nextValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+*+*`, priorityCSS(1))
+      rule.add({ state: State.memReadInc, ptr, currentU: ~nextValue, currentL: 0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+*+*`)
+      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*`)
+      rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+*`, priorityCSS(1))
+      rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+*`)
+      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*`)
       rule
     }
   }
@@ -373,7 +373,7 @@ class Rule {
       selectors.push('#mem')
     } else {
       const diff = stateSize + 2 * progSize + 2 * memSize + 2 * halfByteSize - idx
-      selectors.push(`${new Array(diff).fill('+*').join('')}`) 
+      selectors.push(`${new Array(diff-1).fill('+*').join('')}+#mem`)
     }
     this.styles.push([selectors.join('') + ' ' + selector, style])
   }
