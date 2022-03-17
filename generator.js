@@ -40,20 +40,6 @@ input[name="cl"]:after {
 #mem .m input:before{width: 25px;}
 input[name="state"], input[name="state"]:before{width: 120px;}
 input[name="state"]:before{font-size:16px;}
-input[name="state"][value="0"]:before{content:"start";}
-input[name="state"][value="1"]:before{content:"jump";}
-input[name="state"][value="2"]:before{content:"after";}
-input[name="state"][value="3"]:before{content:"memRead";}
-input[name="state"][value="4"]:before{content:"memReadInc";}
-input[name="state"][value="5"]:before{content:"memReadDec";}
-input[name="state"][value="6"]:before{content:"memWrite";}
-input[name="state"][value="7"]:before{content:"pcReadInc";}
-input[name="state"][value="8"]:before{content:"pcWrite";}
-input[name="state"][value="9"]:before{content:"ptrReadInc";}
-input[name="state"][value="a"]:before{content:"ptrReadDec";}
-input[name="state"][value="b"]:before{content:"ptrWrite";}
-input[name="state"][value="c"]:before{content:"input";}
-input[name="state"][value="d"]:before{content:"output";}
 
 label{
   display: none;
@@ -223,12 +209,14 @@ function generate(code, memSize = 8) {
       const prevValue = (value + halfByteSize - 1) % halfByteSize
       rule.add({ state: State.memWrite, ptr, currentU: value }, `#vu${ptr}-${value}:not(:checked)+*+*`)
       rule.add({ state: State.memWrite, ptr, currentL: value }, `#vl${ptr}-${value}:not(:checked)+*+*`)
-      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#vu${ptr}-${value}:checked)+*+*+*+*`)
-      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#vl${ptr}-${value}:checked)+*+*+*+*+*+*`)
+      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#vu${ptr}-${value}:checked+*+*+*+*`)
+      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#vl${ptr}-${value}:checked+*+*+*+*+*+*`)
       rule.add({ state: State.memReadInc, ptr, currentL: ~nextValue }, `#vl${ptr}-${value}:checked+*+*+*+*+*+*+*+*`, priorityCSS(1))
       rule.add({ state: State.memReadInc, ptr, currentU: ~nextValue, currentL: 0 }, `#vu${ptr}-${value}:checked+*+*+*+*+*+*`)
+      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~0 }, `#vu${ptr}-${value}:checked+*+*+*+*`)
       rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#vl${ptr}-${value}:checked+*+*+*+*+*+*+*`, priorityCSS(1))
       rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#vu${ptr}-${value}:checked+*+*+*+*+*`)
+      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#vu${ptr}-${value}:checked+*+*+*+*`)
       rule
     }
   }
@@ -312,6 +300,10 @@ function createDesignStyle() {
     const selector = ['input[name="cu"]', 'input[name="cl"]', '#mem input'].map(s => `${s}[value="${value}"]:before`).join(',')
     styles.push(`${selector}{content:"${value.toString(16).toUpperCase()}";}`)
   }
+  for (const name in State) {
+    styles.push(`input[name="state"][value="${State[name]}"]:before{content:"${name}";}`)
+  }
+
   return styles.join('\n')
 }
 
