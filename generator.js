@@ -248,6 +248,7 @@ function createKeyboard() {
     '</div>',
     '</div>'
   ].join('\n')
+  styles.push('#kb{height:0}')
   styles.push('#input label{width: 32px;height: 32px;font-size:20px;line-height:32px;margin:4px;box-shadow: 0 0 1px gray}')
   styles.push('#input #Kshift{width:0;height:0;position:absolute}')
   styles.push('#input #Kshift:checked+.keyboard-normal{display:none;}')
