@@ -54,6 +54,7 @@ label{
   line-height: 200px;
   background: silver;
   border-radius: 20px;
+  cursor:pointer;
 }
 label:after {
   position: absolute;
@@ -156,15 +157,17 @@ const states = [
 const State = {}
 states.forEach((name, index) => { State[name] = index })
 const normalKeys = [
+  sequence(16),
   '`1234567890-=',
-  'qwertyuiop[]\\',
+  '\tqwertyuiop[]\\',
   'asdfghjkl;\'\n',
   'zxcvbnm,./',
   ' '
 ]
 const shiftKeys = [
+  sequence(16).map(v => v + 16),
   '~!@#$%^&*()_+',
-  'QWERTYUIOP{}|',
+  '\tQWERTYUIOP{}|',
   'ASDFGHJKL:"\n',
   'ZXCVBNM<>?',
   ' '
@@ -200,22 +203,31 @@ function builder(progSize, memSize) {
   return { html, rule, kbstyle }
 }
 function createKeyboard() {
-  const converts = { '\n': '⏎', '&': '&amp;', '<': '&lt;', '>': '&gt;', ' ': 'space' }
+  const converts = { '\n': '⏎', '&': '&amp;', '<': '&lt;', '>': '&gt;', ' ': 'space', '\t': 'tab' }
   const styles = []
+  const emptyLabel = (size) => `<label class="KLsp${size} KLnone"></label>`
   const keysHTML = [normalKeys, shiftKeys].map((lines, isShift) => {
     const lineHTML = lines.map((line, h) => {
       const html = [...line].map(key => {
-        const code = key.charCodeAt(0)
-        return `<label class="KL${code}" for="K${code}">${converts[key] ?? key}</label>`
+        const hex = typeof key === 'number'
+        const code = hex ? key : key.charCodeAt(0)
+        const text = hex ? (256 + key).toString(16).toUpperCase().substring(1) : converts[key] ?? key
+        return `<label class="KL${code}${hex ? ' Khex' : ''}" for="K${code}">${text}</label>`
       }).join('')
-      if (h == 3) {
-        const shift = '<label class="KLshift" for="Kshift">shift</label>'
-        return `<div>${shift}${html}${shift}</div>`
-      } else if (h == 4) {
-        return `<div>${html}<label class="ok" for="state${State.writeKB}">OK</label></div>`
-      } else {
-        return `<div>${html}</div>`
+      const lefts = []
+      const rights = []
+      if (h == 1) rights.push(emptyLabel(2))
+      if (h == 3) lefts.push(emptyLabel(3))
+      if (h == 4) {
+        const shift = '<label class="KLsp4" for="Kshift">shift</label>'
+        lefts.push(shift)
+        rights.push(shift)
       }
+      if (h == 5) {
+        lefts.push(emptyLabel(4))
+        rights.push(`<label class="ok KLsp5" for="state${State.writeKB}">OK</label>`)
+      }
+      return `<div>${lefts.join('')}${html}${rights.join('')}</div>`
     }).join('\n')
     return [
       `<div class="keyboard keyboard-${isShift ? 'shift' : 'normal'}">`,
@@ -240,10 +252,15 @@ function createKeyboard() {
   styles.push('#input #Kshift{width:0;height:0;position:absolute}')
   styles.push('#input #Kshift:checked+.keyboard-normal{display:none;}')
   styles.push('#input #Kshift:not(:checked)+*+.keyboard-shift{display:none;}')
-  styles.push('#input .KLshift{width: 64px;}')
-  styles.push('#input .KL32{width: 200px;}')
-  styles.push('#input .ok{font-size: 20px; width: 64px;background: #aac;}')
-  styles.push('#input .keyboard div{display:flex;justify-content:center;}')
+  styles.push('#input label.Khex{font-size:16px;width:28px;}')
+  styles.push('#input .KLsp2, #input .KL9{width:54px;}')
+  styles.push('#input .KLsp3, #input .KL10{width:64px;}')
+  styles.push('#input .KLsp4{width:88px;}')
+  styles.push('#input .KLsp5{width:128px;}')
+  styles.push('#input .KLnone{cursor:auto}')
+  styles.push('#input .KL32{width:224px;}')
+  styles.push('#input .ok{font-size: 20px;background: #aac;}')
+  styles.push('#input .keyboard div{display:flex;justify-content:space-between;;width:610px;margin: 0 auto;}')
   for (const code of sequence(128)) {
     styles.push(`#kb #K${code}:checked${stringMult('+*', 128-code - 1)}+#input .KL${code}{background:gray;color:white;}`)
   }
