@@ -27,19 +27,39 @@ input[name="cl"]:after {
   position: absolute;
   content: attr(name);
 }
-#mem{border: 1px solid silver;}
+#mem{
+  border: 1px solid silver;
+  height: 40px;
+  white-space: nowrap;
+  overflow-x: auto;
+}
 #mem .m{
   display: inline-block;
-  width: 50px;
+  width: 32px;
   height: 40px;
   position: relative;
+  margin-right: 8px
 }
 #mem .m input{margin: 0;padding: 0;}
-#mem .m .u{position:absolute;width:20px;left:5px;}
-#mem .m .l{position:absolute;width:20px;right:5px;}
-#mem .m input:before{width: 25px;}
+#mem .m .u{position:absolute;width:16px;left:0;}
+#mem .m .l{position:absolute;width:16px;right:0;}
+#mem .m input:before{width: 16px;}
 input[name="state"], input[name="state"]:before{width: 120px;}
 input[name="state"]:before{font-size:16px;}
+#code{
+  border: 1px solid silver;
+  margin: 8px 0;
+  padding: 8px;
+  height: 120px;
+}
+#code span{
+  text-align: center;
+  font-size: 16px;
+  width: 12px;
+  height: 24px;
+  line-height: 24px;
+  display: inline-block;
+}
 
 label{
   display: none;
@@ -174,7 +194,7 @@ const shiftKeys = [
 ]
 
 const stateSize = Object.keys(State).length
-function builder(progSize, memSize) {
+function builder(progSize, memSize, code) {
   const rule = new Rule(progSize, memSize)
   const [kbhtml, kbstyle] = createKeyboard()
   const html = [
@@ -186,7 +206,9 @@ function builder(progSize, memSize) {
       createRadios(memSize, '_ptr'),
       createRadios(halfByteSize, 'cu'),
       createRadios(halfByteSize, 'cl'),
-    ].join('').replace(/\n/g, '') + '<div id="mem">',
+    ].join('\n'),
+    '<div id="sub">',
+    '<div id="mem">',
     sequence(memSize).map(ptr => {
       const radioLabels = createRadioLabels(halfByteSize, [[`vu${ptr}-`, 'u'], [`vl${ptr}-`, 'l']], `L${ptr}`, [[`vu${ptr}-`, 0], [`vl${ptr}-`, 0], ['cu', 0], ['cu', -1], ['cu', +1], ['cl', 0], ['cl', -1], ['cl', +1]])
       return `<div class="m" id="m${ptr}">${radioLabels}</div>`
@@ -198,6 +220,12 @@ function builder(progSize, memSize) {
     createLabels(memSize, '_ptr'),
     `<div id="output"><div></div><label class="ok" for="state${State.after}">ok</label></div>`,
     kbhtml,
+    '</div>',
+    [
+      '<div id="code">',
+      sequence(progSize).map(pc => `<span id="c${pc}">${code[pc] ?? '&nbsp;'}</span>`).join(''),
+      '</div>'
+    ].join(''),
     '</div>'
   ].join('\n')
   return { html, rule, kbstyle }
@@ -278,16 +306,19 @@ function addKeyboardRules(rule) {
 
 function generate(code, memSize = 8) {
   const operations = parseBF(code)
+  const compactCode = operations.map(op => op[0])
   const progSize = operations.length + 1
-  const { html, rule, kbstyle } = builder(progSize, memSize)
+  const { html, rule, kbstyle } = builder(progSize, memSize, compactCode)
   for (let pc of sequence(progSize)) {
     rule.add({ state: State.pcReadNext, pc, _pc: ~(pc + 1) }, `#L_pc${pc + 1}`)
     rule.add({ state: State.pcWrite, pc: ~pc, _pc: pc }, `#Lpc${pc}`)
+    rule.add({ pc: pc }, `#c${pc}`, 'background:#faa')
   }
   for (let ptr of sequence(memSize)) {
     rule.add({ state: State.ptrReadDec, ptr, _ptr: ~(ptr - 1) }, `#L_ptr${ptr - 1}`)
     rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `#L_ptr${ptr + 1}`)
     rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `#Lptr${ptr}`)
+    rule.add({ ptr }, `#m${ptr} input:checked:before`, 'background:#faa')
     // vu vl #Lvu #Lvl #cu-0 #cu-1 #cu+1 #cl-0 #cl-1 #cl+1
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
@@ -310,7 +341,7 @@ function generate(code, memSize = 8) {
   for (let currentU of sequence(halfByteSize)) {
     for (let currentL of sequence(halfByteSize)) {
       const code = (currentU << 4) | currentL
-      const hex = `${currentU.toString(16)}${currentL.toString(16)}`
+      const hex = `${currentU.toString(16)}${currentL.toString(16)}`.toUpperCase()
       const content = code <= 32 || code >= 127 ? `0x${hex}` : `\\${hex}  (0x${hex})`
       rule.add({ state: State.output, currentU, currentL }, '#output div:after', `content: "${content}"`)
     }
@@ -456,10 +487,10 @@ class Rule {
       idx = offset + v
     }
     if (idx === -1) {
-      selectors.push('#mem')
+      selectors.push('#sub')
     } else {
       const diff = stateSize + 2 * progSize + 2 * memSize + 2 * halfByteSize - idx
-      selectors.push(`${new Array(diff-1).fill('+*').join('')}+#mem`)
+      selectors.push(`${new Array(diff-1).fill('+*').join('')}+#sub`)
     }
     this.styles.push([selectors.join('') + ' ' + selector, style])
   }
