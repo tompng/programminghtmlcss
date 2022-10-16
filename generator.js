@@ -135,11 +135,6 @@ label:after {
 }
 `
 
-const ptrId = 'c'
-function ptrName(idx = 0) { return `ptr${idx}` }
-function ptrValueName(idx = 0, value = 0) { return `ptr${idx}-${value}` }
-function currentValueName(value = 0) { return `c${value}` }
-
 function createRadios(n, name) {
   return sequence(n).map(
     (_, value) => createRadio(name, value, value === 0)
@@ -296,14 +291,14 @@ function createKeyboard() {
   styles.push('#input .ok{font-size: 20px;background: #aac;}')
   styles.push('#input .keyboard div{display:flex;justify-content:space-between;;width:610px;margin: 0 auto;}')
   for (const code of sequence(128)) {
-    styles.push(`#kb #K${code}:checked${stringMult('+*', 128-code - 1)}+#input .KL${code}{background:gray;color:white;}`)
+    styles.push(`#kb:has(#K${code}:checked) #input .KL${code}{background:gray;color:white;}`)
   }
   return [html, styles.join('\n')]
 }
-function stringMult(s, n) { return [...new Array(n + 1)].join(s) }
+
 function addKeyboardRules(rule) {
   for (const code of sequence(128)) {
-    const base = `#kb #K${code}:checked${stringMult('+*', 128 - code)}+#kblabels`
+    const base = `#kb:has(#K${code}:checked) #kblabels`
     rule.add({ state: State.writeKB, currentU: ~(code >> 4) }, `${base} #KLcu${code >> 4}`)
     rule.add({ state: State.writeKB, currentL: ~(code & 0xf) }, `${base} #KLcl${code & 0xf}`)
   }
