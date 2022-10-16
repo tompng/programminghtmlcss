@@ -1,6 +1,9 @@
 const baseStyle = `
 body{font-family:monospace;}
 input {display: none;}
+#state, #pc, #_pc, #ptr, #_ptr, #cl, #cu {
+  display: inline;
+}
 input:checked {
   display: inline;
   position: relative;
@@ -198,26 +201,28 @@ function builder(progSize, memSize, code) {
   const rule = new Rule(progSize, memSize)
   const [kbhtml, kbstyle] = createKeyboard()
   const html = [
-    [
-      createRadios(stateSize, 'state'),
-      createRadios(progSize, 'pc'),
-      createRadios(progSize, '_pc'),
-      createRadios(memSize, 'ptr'),
-      createRadios(memSize, '_ptr'),
-      createRadios(halfByteSize, 'cu'),
-      createRadios(halfByteSize, 'cl'),
-    ].join('\n'),
-    '<div id="sub">',
+    '<div id="register">',
+    `<div id="state">${createRadios(stateSize, 'state')}</div>`,
+    `<div id="pc">${createRadios(progSize, 'pc')}</div>`,
+    `<div id="_pc">${createRadios(progSize, '_pc')}</div>`,
+    `<div id="ptr">${createRadios(memSize, 'ptr')}</div>`,
+    `<div id="_ptr">${createRadios(memSize, '_ptr')}</div>`,
+    `<div id="cu">${createRadios(halfByteSize, 'cu')}</div>`,
+    `<div id="cl">${createRadios(halfByteSize, 'cl')}</div>`,
+    '</div>',
+    '<div id="labels">',
     '<div id="mem">',
     sequence(memSize).map(ptr => {
       const radioLabels = createRadioLabels(halfByteSize, [[`vu${ptr}-`, 'u'], [`vl${ptr}-`, 'l']], `L${ptr}`, [[`vu${ptr}-`, 0], [`vl${ptr}-`, 0], ['cu', 0], ['cu', -1], ['cu', +1], ['cl', 0], ['cl', -1], ['cl', +1]])
       return `<div class="m" id="m${ptr}">${radioLabels}</div>`
     }).join('\n'),
+    '</div>',
     createLabels(stateSize, 'state'),
     createLabels(progSize, 'pc'),
     createLabels(progSize, '_pc'),
     createLabels(memSize, 'ptr'),
     createLabels(memSize, '_ptr'),
+    '</div>',
     `<div id="output"><div></div><label class="ok" for="state${State.after}">ok</label></div>`,
     kbhtml,
     '</div>',
@@ -276,7 +281,7 @@ function createKeyboard() {
     '</div>',
     '</div>'
   ].join('\n')
-  styles.push('#kb{height:0}')
+  styles.push('#kb{height:0;overflow:hidden;}')
   styles.push('#input label{width: 32px;height: 32px;font-size:20px;line-height:32px;margin:4px;box-shadow: 0 0 1px gray}')
   styles.push('#input #Kshift{width:0;height:0;position:absolute}')
   styles.push('#input #Kshift:checked+.keyboard-normal{display:none;}')
@@ -461,38 +466,29 @@ class Rule {
     this.progSize = progSize
     this.memSize = memSize
   }
-  add({ state, pc, _pc, ptr, _ptr, currentU, currentL }, selector, style = 'display: block;') {
-    const { progSize, memSize } = this
-    let idx = -1
-    const selectors = []
+  add({ state, pc, _pc, ptr, _ptr, currentL, currentU }, selector, style = 'display: block;') {
     const positions = [
-      [0, 'state', state],
-      [stateSize, 'pc', pc],
-      [stateSize + progSize, '_pc', _pc],
-      [stateSize + progSize * 2, 'ptr', ptr],
-      [stateSize + progSize * 2 + memSize, '_ptr', _ptr],
-      [stateSize + progSize * 2 + memSize * 2, 'cu', currentU],
-      [stateSize + progSize * 2 + memSize * 2 + halfByteSize, 'cl', currentL]
+      ['state', state],
+      ['pc', pc],
+      ['_pc', _pc],
+      ['ptr', ptr],
+      ['_ptr', _ptr],
+      ['cu', currentU],
+      ['cl', currentL],
     ]
-    for (const [offset, prefix, value] of positions) {
+    const selectors = []
+    for (const [prefix, value] of positions) {
       if (value == null) continue
       const v = value < 0 ? ~value : value
+      if (!prefix) prefix = id
       const mode = value === v ? 'checked' : 'not(:checked)'
-      if (idx === -1) {
-        selectors.push(`#${prefix}${v}:${mode}`)
-      } else {
-        const diff = offset + v - idx
-        selectors.push(`${new Array(diff).fill('+*').join('')}:${mode}`) 
-      }
-      idx = offset + v
+      selectors.push(`:has(#${prefix}${v}:${mode})`)
     }
-    if (idx === -1) {
-      selectors.push('#sub')
-    } else {
-      const diff = stateSize + 2 * progSize + 2 * memSize + 2 * halfByteSize - idx
-      selectors.push(`${new Array(diff-1).fill('+*').join('')}+#sub`)
+    if (selectors.length) {
+      selectors.unshift('body')
+      selectors.push(' ')
     }
-    this.styles.push([selectors.join('') + ' ' + selector, style])
+    this.styles.push([selectors.join('') + selector, style])
   }
   toCSS() {
     return this.styles.map(([selector, style]) => `${selector}{${style}}`).join('\n')
