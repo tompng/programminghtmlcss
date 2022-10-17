@@ -1,16 +1,13 @@
 const baseStyle = `
 body{font-family:monospace;}
 input {display: none;}
-#state, #pc, #_pc, #ptr, #_ptr, #cl, #cu {
-  display: inline;
-}
 input:checked {
   display: inline;
   position: relative;
   width: 40px;
   height: 40px;
 }
-input:checked:before {
+input:checked::after {
   background: white;
   position: absolute;
   width: 40px;
@@ -20,16 +17,31 @@ input:checked:before {
   font-size: 20px;
   content: attr(value);
 }
-input[name="state"]:after,
-input[name="pc"]:after,
-input[name="_pc"]:after,
-input[name="ptr"]:after,
-input[name="_ptr"]:after,
-input[name="cu"]:after,
-input[name="cl"]:after {
-  position: absolute;
-  content: attr(name);
+#state, #pc, #_pc, #ptr, #_ptr, #value {
+  display: inline-block;
+  position: relative;
 }
+#state::after, #pc::after, #_pc::after, #ptr::after, #_ptr::after, #value::after {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 12px;
+}
+#state::after{content: "state";}
+#pc::after{content: "pc";}
+#_pc::after{content: "_pc";}
+#ptr::after{content: "ptr";}
+#_ptr::after{content: "_ptr";}
+#value::after{content: "value";}
+#state input, #state input::after{width: 120px; font-size:16px;}
+#value input, #value input::after{
+  width: 16px;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 #mem{
   border: 1px solid silver;
   height: 40px;
@@ -46,9 +58,8 @@ input[name="cl"]:after {
 #mem .m input{margin: 0;padding: 0;}
 #mem .m .u{position:absolute;width:16px;left:0;}
 #mem .m .l{position:absolute;width:16px;right:0;}
-#mem .m input:before{width: 16px;}
-input[name="state"], input[name="state"]:before{width: 120px;}
-input[name="state"]:before{font-size:16px;}
+#mem .m input::after{width: 16px;}
+
 #code{
   border: 1px solid silver;
   margin: 8px 0;
@@ -79,7 +90,7 @@ label{
   border-radius: 20px;
   cursor:pointer;
 }
-label:after {
+label::after {
   position: absolute;
   left: 0; top: 0;
   width: 100%; height:100%;
@@ -102,9 +113,9 @@ label:after {
   font-size: 64px;
   white-space: pre;
 }
-#output div:before {
+#output div::before {
   font-size: 0.75em;
-  content: 'output:'
+  content: 'Output:'
 }
 #input label, #output label {
   display: inline-block;
@@ -127,10 +138,11 @@ label:after {
   background: #eee;
 }
 
-#input:before {
-  content: 'input';
+#input::before {
+  font-size: 32px;
+  content: 'Input';
 }
-#input label:before, #output label:before, #input label:after, #output label:after {
+#input label::after, #output label::after, #input label::after, #output label::after {
   content: none;
 }
 `
@@ -191,8 +203,7 @@ function builder(progSize, memSize, code) {
     `<div id="_pc">${createRadios(progSize, '_pc')}</div>`,
     `<div id="ptr">${createRadios(memSize, 'ptr')}</div>`,
     `<div id="_ptr">${createRadios(memSize, '_ptr')}</div>`,
-    `<div id="cu">${createRadios(halfByteSize, 'cu')}</div>`,
-    `<div id="cl">${createRadios(halfByteSize, 'cl')}</div>`,
+    `<div id="value">${createRadios(halfByteSize, 'cu')}${createRadios(halfByteSize, 'cl')}</div>`,
     '</div>',
     '<div id="mem">',
     sequence(memSize).map(ptr => {
@@ -313,7 +324,7 @@ function generate(code, memSize = 8) {
     rule.add({ state: State.ptrReadDec, ptr, _ptr: ~(ptr - 1) }, `#L_ptr${ptr - 1}`)
     rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `#L_ptr${ptr + 1}`)
     rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `#Lptr${ptr}`)
-    rule.add({ ptr }, `#m${ptr} input:checked:before`, 'background:#faa')
+    rule.add({ ptr }, `#m${ptr} input:checked::after`, 'background:#faa')
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
       const prefix = `#L${ptr}`
@@ -336,7 +347,7 @@ function generate(code, memSize = 8) {
       const code = (currentU << 4) | currentL
       const hex = `${currentU.toString(16)}${currentL.toString(16)}`.toUpperCase()
       const content = code <= 32 || code >= 127 ? `0x${hex}` : `\\${hex}  (0x${hex})`
-      rule.add({ state: State.output, cu: currentU, cl: currentL }, '#output div:after', `content: "${content}"`)
+      rule.add({ state: State.output, cu: currentU, cl: currentL }, '#output div::after', `content: "${content}"`)
     }
   }
   rule.add({ state: State.input }, '#input')
@@ -408,11 +419,11 @@ function addBFRules(rule, operations) {
 function createDesignStyle() {
   const styles = []
   for (const value of sequence(16)) {
-    const selector = ['input[name="cu"]', 'input[name="cl"]', '#mem input'].map(s => `${s}[value="${value}"]:before`).join(',')
+    const selector = ['#value input', '#mem input'].map(s => `${s}[value="${value}"]::after`).join(',')
     styles.push(`${selector}{content:"${value.toString(16).toUpperCase()}";}`)
   }
   for (const name in State) {
-    styles.push(`input[name="state"][value="${State[name]}"]:before{content:"${name}";}`)
+    styles.push(`#state${State[name]}::after{content:"${name}";}`)
   }
   return styles.join('\n')
 }
