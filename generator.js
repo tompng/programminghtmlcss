@@ -203,12 +203,12 @@ function builder(progSize, memSize, code) {
     `<div id="_pc">${createRadios(progSize, '_pc')}</div>`,
     `<div id="ptr">${createRadios(memSize, 'ptr')}</div>`,
     `<div id="_ptr">${createRadios(memSize, '_ptr')}</div>`,
-    `<div id="value">${createRadios(halfByteSize, 'cu')}${createRadios(halfByteSize, 'cl')}</div>`,
+    `<div id="value">${createRadios(halfByteSize, 'vu')}${createRadios(halfByteSize, 'vl')}</div>`,
     '</div>',
     '<div id="mem">',
     sequence(memSize).map(ptr => {
-      const upper = createRadios(halfByteSize, `vu${ptr}-`, 'u')
-      const lower = createRadios(halfByteSize, `vl${ptr}-`, 'l')
+      const upper = createRadios(halfByteSize, `mu${ptr}-`, 'u')
+      const lower = createRadios(halfByteSize, `ml${ptr}-`, 'l')
       return `<div class="m" id="m${ptr}">${upper}${lower}</div>`
     }).join('\n'),
     '</div>',
@@ -218,10 +218,10 @@ function builder(progSize, memSize, code) {
     createLabels(progSize, '_pc'),
     createLabels(memSize, 'ptr'),
     createLabels(memSize, '_ptr'),
-    createLabels(halfByteSize, 'cu'),
-    createLabels(halfByteSize, 'cl'),
+    createLabels(halfByteSize, 'vu'),
+    createLabels(halfByteSize, 'vl'),
     sequence(memSize).map(
-      ptr => createLabels(halfByteSize, `vu${ptr}-`) + createLabels(halfByteSize, `vl${ptr}-`)
+      ptr => createLabels(halfByteSize, `mu${ptr}-`) + createLabels(halfByteSize, `ml${ptr}-`)
     ).join('\n'),
     '</div>',
     `<div id="output"><div></div><label class="ok" for="state${State.after}">ok</label></div>`,
@@ -277,8 +277,8 @@ function createKeyboard() {
     keysHTML,
     '</div>',
     '<div id="kblabels">',
-    sequence(halfByteSize).map(v => `<label id="KLcu${v}" for="cu${v}"></label>`).join(''),
-    sequence(halfByteSize).map(v => `<label id="KLcl${v}" for="cl${v}"></label>`).join(''),
+    sequence(halfByteSize).map(v => `<label id="KLvu${v}" for="vu${v}"></label>`).join(''),
+    sequence(halfByteSize).map(v => `<label id="KLvl${v}" for="vl${v}"></label>`).join(''),
     '</div>',
     '</div>'
   ].join('\n')
@@ -305,8 +305,8 @@ function createKeyboard() {
 function addKeyboardRules(rule) {
   for (const code of sequence(128)) {
     const base = `#kb:has(#K${code}:checked) #kblabels`
-    rule.add({ state: State.writeKB, cu: ~(code >> 4) }, `${base} #KLcu${code >> 4}`)
-    rule.add({ state: State.writeKB, cl: ~(code & 0xf) }, `${base} #KLcl${code & 0xf}`)
+    rule.add({ state: State.writeKB, vu: ~(code >> 4) }, `${base} #KLvu${code >> 4}`)
+    rule.add({ state: State.writeKB, vl: ~(code & 0xf) }, `${base} #KLvl${code & 0xf}`)
   }
 }
 
@@ -328,26 +328,26 @@ function generate(code, memSize = 8) {
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
       const prefix = `#L${ptr}`
-      rule.add({ state: State.memWrite, ptr, cu: value, [`vu${ptr}-`]: ~value }, `#Lvu${ptr}-${value}`)
-      rule.add({ state: State.memWrite, ptr, cl: value, [`vl${ptr}-`]: ~value }, `#Lvl${ptr}-${value}`)
-      rule.add({ state: State.memRead, ptr, cu: ~value, [`vu${ptr}-`]: value }, `#Lcu${value}`)
-      rule.add({ state: State.memRead, ptr, cl: ~value, [`vl${ptr}-`]: value }, `#Lcl${value}`)
-      rule.add({ state: State.memReadInc, ptr, cl: ~nextValue, [`vl${ptr}-`]: value }, `#Lcl${nextValue}`, priorityCSS(1))
-      rule.add({ state: State.memReadInc, ptr, cu: ~nextValue, cl: 0, [`vu${ptr}-`]: value }, `#Lcu${nextValue}`)
-      rule.add({ state: State.memReadInc, ptr, cu: ~value, cl: ~0, [`vu${ptr}-`]: value }, `#Lcu${value}`)
-      rule.add({ state: State.memReadDec, ptr, cl: ~value, [`vl${ptr}-`]: nextValue }, `#Lcl${value}`, priorityCSS(1))
-      rule.add({ state: State.memReadDec, ptr, cu: ~value, cl: halfByteSize - 1, [`vu${ptr}-`]: nextValue }, `#Lcu${value}`)
-      rule.add({ state: State.memReadDec, ptr, cu: ~nextValue, cl: ~(halfByteSize - 1), [`vu${ptr}-`]: nextValue }, `#Lcu${nextValue}`)
+      rule.add({ state: State.memWrite, ptr, vu: value, [`mu${ptr}-`]: ~value }, `#Lmu${ptr}-${value}`)
+      rule.add({ state: State.memWrite, ptr, vl: value, [`ml${ptr}-`]: ~value }, `#Lml${ptr}-${value}`)
+      rule.add({ state: State.memRead, ptr, vu: ~value, [`mu${ptr}-`]: value }, `#Lvu${value}`)
+      rule.add({ state: State.memRead, ptr, vl: ~value, [`ml${ptr}-`]: value }, `#Lvl${value}`)
+      rule.add({ state: State.memReadInc, ptr, vl: ~nextValue, [`ml${ptr}-`]: value }, `#Lvl${nextValue}`, priorityCSS(1))
+      rule.add({ state: State.memReadInc, ptr, vu: ~nextValue, vl: 0, [`mu${ptr}-`]: value }, `#Lvu${nextValue}`)
+      rule.add({ state: State.memReadInc, ptr, vu: ~value, vl: ~0, [`mu${ptr}-`]: value }, `#Lvu${value}`)
+      rule.add({ state: State.memReadDec, ptr, vl: ~value, [`ml${ptr}-`]: nextValue }, `#Lvl${value}`, priorityCSS(1))
+      rule.add({ state: State.memReadDec, ptr, vu: ~value, vl: halfByteSize - 1, [`mu${ptr}-`]: nextValue }, `#Lvu${value}`)
+      rule.add({ state: State.memReadDec, ptr, vu: ~nextValue, vl: ~(halfByteSize - 1), [`mu${ptr}-`]: nextValue }, `#Lvu${nextValue}`)
     }
   }
   rule.add({ state: State.writeKB }, `#Lstate${State.after}`)
   rule.add({ state: State.output }, '#output')
-  for (let currentU of sequence(halfByteSize)) {
-    for (let currentL of sequence(halfByteSize)) {
-      const code = (currentU << 4) | currentL
-      const hex = `${currentU.toString(16)}${currentL.toString(16)}`.toUpperCase()
+  for (let valueUpper of sequence(halfByteSize)) {
+    for (let valueLower of sequence(halfByteSize)) {
+      const code = (valueUpper << 4) | valueLower
+      const hex = `${valueUpper.toString(16)}${valueLower.toString(16)}`.toUpperCase()
       const content = code <= 32 || code >= 127 ? `0x${hex}` : `\\${hex}  (0x${hex})`
-      rule.add({ state: State.output, cu: currentU, cl: currentL }, '#output div::after', `content: "${content}"`)
+      rule.add({ state: State.output, vu: valueUpper, vl: valueLower }, '#output div::after', `content: "${content}"`)
     }
   }
   rule.add({ state: State.input }, '#input')
@@ -370,7 +370,7 @@ function addBFRules(rule, operations) {
         rule.add({ pc, state: State.jump, _pc: ~pc }, `#L_pc${pc}`)
         rule.add({ pc, state: State.jump, _pc: pc }, `#Lstate${State.after}`)
         rule.add({ pc, state: State.after, _pc: pc }, `#L_pc${pc + 1}`, priorityCSS(-2))
-        rule.add({ pc, state: State.after, _pc: pc, cu: 0, cl: 0 }, `#L_pc${op[1] + 1}`, priorityCSS(-2))
+        rule.add({ pc, state: State.after, _pc: pc, vu: 0, vl: 0 }, `#L_pc${op[1] + 1}`, priorityCSS(-2))
         rule.add({ pc, state: State.after, _pc: ~pc }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case ']':
