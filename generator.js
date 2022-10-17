@@ -135,21 +135,10 @@ label:after {
 }
 `
 
-function createRadios(n, name) {
+function createRadios(n, name, className) {
   return sequence(n).map(
-    (_, value) => createRadio(name, value, value === 0)
+    (_, value) => createRadio(name, value, value === 0, className)
   ).join('')
-}
-
-function createRadioLabels(n, radioNames, labelIdPrefix, labelNameAdds) {
-  return sequence(n).map((_, value) => {
-    const radios = radioNames.map(([name, className]) => createRadio(name, value, value === 0, className))
-    const labels = labelNameAdds.map(([name, offset]) => {
-      const v = (value + offset + n) % n
-      return `<label id="${labelIdPrefix}${name}${v}" for="${name}${v}"></label>`
-    })
-    return radios.join('') + labels.join('')
-  }).join('\n')
 }
 
 function createLabels(n, name) {
@@ -205,18 +194,24 @@ function builder(progSize, memSize, code) {
     `<div id="cu">${createRadios(halfByteSize, 'cu')}</div>`,
     `<div id="cl">${createRadios(halfByteSize, 'cl')}</div>`,
     '</div>',
-    '<div id="labels">',
     '<div id="mem">',
     sequence(memSize).map(ptr => {
-      const radioLabels = createRadioLabels(halfByteSize, [[`vu${ptr}-`, 'u'], [`vl${ptr}-`, 'l']], `L${ptr}`, [[`vu${ptr}-`, 0], [`vl${ptr}-`, 0], ['cu', 0], ['cu', -1], ['cu', +1], ['cl', 0], ['cl', -1], ['cl', +1]])
-      return `<div class="m" id="m${ptr}">${radioLabels}</div>`
+      const upper = createRadios(halfByteSize, `vu${ptr}-`, 'u')
+      const lower = createRadios(halfByteSize, `vl${ptr}-`, 'l')
+      return `<div class="m" id="m${ptr}">${upper}${lower}</div>`
     }).join('\n'),
     '</div>',
+    '<div id="labels">',
     createLabels(stateSize, 'state'),
     createLabels(progSize, 'pc'),
     createLabels(progSize, '_pc'),
     createLabels(memSize, 'ptr'),
     createLabels(memSize, '_ptr'),
+    createLabels(halfByteSize, 'cu'),
+    createLabels(halfByteSize, 'cl'),
+    sequence(memSize).map(
+      ptr => createLabels(halfByteSize, `vu${ptr}-`) + createLabels(halfByteSize, `vl${ptr}-`)
+    ).join('\n'),
     '</div>',
     `<div id="output"><div></div><label class="ok" for="state${State.after}">ok</label></div>`,
     kbhtml,
@@ -299,8 +294,8 @@ function createKeyboard() {
 function addKeyboardRules(rule) {
   for (const code of sequence(128)) {
     const base = `#kb:has(#K${code}:checked) #kblabels`
-    rule.add({ state: State.writeKB, currentU: ~(code >> 4) }, `${base} #KLcu${code >> 4}`)
-    rule.add({ state: State.writeKB, currentL: ~(code & 0xf) }, `${base} #KLcl${code & 0xf}`)
+    rule.add({ state: State.writeKB, cu: ~(code >> 4) }, `${base} #KLcu${code >> 4}`)
+    rule.add({ state: State.writeKB, cl: ~(code & 0xf) }, `${base} #KLcl${code & 0xf}`)
   }
 }
 
@@ -319,21 +314,19 @@ function generate(code, memSize = 8) {
     rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `#L_ptr${ptr + 1}`)
     rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `#Lptr${ptr}`)
     rule.add({ ptr }, `#m${ptr} input:checked:before`, 'background:#faa')
-    // vu vl #Lvu #Lvl #cu-0 #cu-1 #cu+1 #cl-0 #cl-1 #cl+1
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
-      const prevValue = (value + halfByteSize - 1) % halfByteSize
       const prefix = `#L${ptr}`
-      rule.add({ state: State.memWrite, ptr, currentU: value }, `#m${ptr} #vu${ptr}-${value}:not(:checked)+*+${prefix}vu${ptr}-${value}`)
-      rule.add({ state: State.memWrite, ptr, currentL: value }, `#m${ptr} #vl${ptr}-${value}:not(:checked)+*+${prefix}vl${ptr}-${value}`)
-      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
-      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+${prefix}cl${value}`)
-      rule.add({ state: State.memReadInc, ptr, currentL: ~nextValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+*+${prefix}cl${nextValue}`, priorityCSS(1))
-      rule.add({ state: State.memReadInc, ptr, currentU: ~nextValue, currentL: 0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+*+${prefix}cu${nextValue}`)
-      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
-      rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+${prefix}cl${prevValue}`, priorityCSS(1))
-      rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+${prefix}cu${prevValue}`)
-      rule.add({ state: State.memReadDec, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
+      rule.add({ state: State.memWrite, ptr, cu: value, [`vu${ptr}-`]: ~value }, `#Lvu${ptr}-${value}`)
+      rule.add({ state: State.memWrite, ptr, cl: value, [`vl${ptr}-`]: ~value }, `#Lvl${ptr}-${value}`)
+      rule.add({ state: State.memRead, ptr, cu: ~value, [`vu${ptr}-`]: value }, `#Lcu${value}`)
+      rule.add({ state: State.memRead, ptr, cl: ~value, [`vl${ptr}-`]: value }, `#Lcl${value}`)
+      rule.add({ state: State.memReadInc, ptr, cl: ~nextValue, [`vl${ptr}-`]: value }, `#Lcl${nextValue}`, priorityCSS(1))
+      rule.add({ state: State.memReadInc, ptr, cu: ~nextValue, cl: 0, [`vu${ptr}-`]: value }, `#Lcu${nextValue}`)
+      rule.add({ state: State.memReadInc, ptr, cu: ~value, cl: ~0, [`vu${ptr}-`]: value }, `#Lcu${value}`)
+      rule.add({ state: State.memReadDec, ptr, cl: ~value, [`vl${ptr}-`]: nextValue }, `#Lcl${value}`, priorityCSS(1))
+      rule.add({ state: State.memReadDec, ptr, cu: ~value, cl: halfByteSize - 1, [`vu${ptr}-`]: nextValue }, `#Lcu${value}`)
+      rule.add({ state: State.memReadDec, ptr, cu: ~nextValue, cl: ~(halfByteSize - 1), [`vu${ptr}-`]: nextValue }, `#Lcu${nextValue}`)
     }
   }
   rule.add({ state: State.writeKB }, `#Lstate${State.after}`)
@@ -343,7 +336,7 @@ function generate(code, memSize = 8) {
       const code = (currentU << 4) | currentL
       const hex = `${currentU.toString(16)}${currentL.toString(16)}`.toUpperCase()
       const content = code <= 32 || code >= 127 ? `0x${hex}` : `\\${hex}  (0x${hex})`
-      rule.add({ state: State.output, currentU, currentL }, '#output div:after', `content: "${content}"`)
+      rule.add({ state: State.output, cu: currentU, cl: currentL }, '#output div:after', `content: "${content}"`)
     }
   }
   rule.add({ state: State.input }, '#input')
@@ -366,7 +359,7 @@ function addBFRules(rule, operations) {
         rule.add({ pc, state: State.jump, _pc: ~pc }, `#L_pc${pc}`)
         rule.add({ pc, state: State.jump, _pc: pc }, `#Lstate${State.after}`)
         rule.add({ pc, state: State.after, _pc: pc }, `#L_pc${pc + 1}`, priorityCSS(-2))
-        rule.add({ pc, state: State.after, _pc: pc, currentU: 0, currentL: 0 }, `#L_pc${op[1] + 1}`, priorityCSS(-2))
+        rule.add({ pc, state: State.after, _pc: pc, cu: 0, cl: 0 }, `#L_pc${op[1] + 1}`, priorityCSS(-2))
         rule.add({ pc, state: State.after, _pc: ~pc }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case ']':
@@ -461,23 +454,14 @@ class Rule {
     this.progSize = progSize
     this.memSize = memSize
   }
-  add({ state, pc, _pc, ptr, _ptr, currentL, currentU }, selector, style = 'display: block;') {
-    const positions = [
-      ['state', state],
-      ['pc', pc],
-      ['_pc', _pc],
-      ['ptr', ptr],
-      ['_ptr', _ptr],
-      ['cu', currentU],
-      ['cl', currentL],
-    ]
+  add(options, selector, style = 'display: block;') {
     const selectors = []
-    for (const [prefix, value] of positions) {
+    for (const key in options) {
+      const value = options[key]
       if (value == null) continue
-      const v = value < 0 ? ~value : value
-      if (!prefix) prefix = id
-      const mode = value === v ? 'checked' : 'not(:checked)'
-      selectors.push(`:has(#${prefix}${v}:${mode})`)
+      const v = value >= 0 ? value : ~value
+      const mode = value >= 0 ? 'checked' : 'not(:checked)'
+      selectors.push(`:has(#${key}${v}:${mode})`)
     }
     if (selectors.length) {
       selectors.unshift('body')
