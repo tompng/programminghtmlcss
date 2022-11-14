@@ -7,7 +7,7 @@ input:checked {
   width: 40px;
   height: 40px;
 }
-input:checked:before {
+input:checked::after {
   background: white;
   position: absolute;
   width: 40px;
@@ -17,16 +17,31 @@ input:checked:before {
   font-size: 20px;
   content: attr(value);
 }
-input[name="state"]:after,
-input[name="pc"]:after,
-input[name="_pc"]:after,
-input[name="ptr"]:after,
-input[name="_ptr"]:after,
-input[name="cu"]:after,
-input[name="cl"]:after {
-  position: absolute;
-  content: attr(name);
+#state, #pc, #_pc, #ptr, #_ptr, #value {
+  display: inline-block;
+  position: relative;
 }
+#state::after, #pc::after, #_pc::after, #ptr::after, #_ptr::after, #value::after {
+  position: absolute;
+  left: 0;
+  top: 0;
+  font-size: 12px;
+}
+#state::after{content: "state";}
+#pc::after{content: "pc";}
+#_pc::after{content: "_pc";}
+#ptr::after{content: "ptr";}
+#_ptr::after{content: "_ptr";}
+#value::after{content: "value";}
+#state input, #state input::after{width: 120px; font-size:16px;}
+#value input, #value input::after{
+  width: 16px;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+  padding-right: 0;
+}
+
 #mem{
   border: 1px solid silver;
   height: 40px;
@@ -43,9 +58,8 @@ input[name="cl"]:after {
 #mem .m input{margin: 0;padding: 0;}
 #mem .m .u{position:absolute;width:16px;left:0;}
 #mem .m .l{position:absolute;width:16px;right:0;}
-#mem .m input:before{width: 16px;}
-input[name="state"], input[name="state"]:before{width: 120px;}
-input[name="state"]:before{font-size:16px;}
+#mem .m input::after{width: 16px;}
+
 #code{
   border: 1px solid silver;
   margin: 8px 0;
@@ -76,7 +90,7 @@ label{
   border-radius: 20px;
   cursor:pointer;
 }
-label:after {
+label::after {
   position: absolute;
   left: 0; top: 0;
   width: 100%; height:100%;
@@ -99,9 +113,9 @@ label:after {
   font-size: 64px;
   white-space: pre;
 }
-#output div:before {
+#output div::before {
   font-size: 0.75em;
-  content: 'output:'
+  content: 'Output:'
 }
 #input label, #output label {
   display: inline-block;
@@ -124,34 +138,19 @@ label:after {
   background: #eee;
 }
 
-#input:before {
-  content: 'input';
+#input::before {
+  font-size: 32px;
+  content: 'Input';
 }
-#input label:before, #output label:before, #input label:after, #output label:after {
+#input label::after, #output label::after, #input label::after, #output label::after {
   content: none;
 }
 `
 
-const ptrId = 'c'
-function ptrName(idx = 0) { return `ptr${idx}` }
-function ptrValueName(idx = 0, value = 0) { return `ptr${idx}-${value}` }
-function currentValueName(value = 0) { return `c${value}` }
-
-function createRadios(n, name) {
+function createRadios(n, name, className) {
   return sequence(n).map(
-    (_, value) => createRadio(name, value, value === 0)
+    (_, value) => createRadio(name, value, value === 0, className)
   ).join('')
-}
-
-function createRadioLabels(n, radioNames, labelIdPrefix, labelNameAdds) {
-  return sequence(n).map((_, value) => {
-    const radios = radioNames.map(([name, className]) => createRadio(name, value, value === 0, className))
-    const labels = labelNameAdds.map(([name, offset]) => {
-      const v = (value + offset + n) % n
-      return `<label id="${labelIdPrefix}${name}${v}" for="${name}${v}"></label>`
-    })
-    return radios.join('') + labels.join('')
-  }).join('\n')
 }
 
 function createLabels(n, name) {
@@ -198,26 +197,33 @@ function builder(progSize, memSize, code) {
   const rule = new Rule(progSize, memSize)
   const [kbhtml, kbstyle] = createKeyboard()
   const html = [
-    [
-      createRadios(stateSize, 'state'),
-      createRadios(progSize, 'pc'),
-      createRadios(progSize, '_pc'),
-      createRadios(memSize, 'ptr'),
-      createRadios(memSize, '_ptr'),
-      createRadios(halfByteSize, 'cu'),
-      createRadios(halfByteSize, 'cl'),
-    ].join('\n'),
-    '<div id="sub">',
+    '<div id="register">',
+    `<div id="state">${createRadios(stateSize, 'state')}</div>`,
+    `<div id="pc">${createRadios(progSize, 'pc')}</div>`,
+    `<div id="_pc">${createRadios(progSize, '_pc')}</div>`,
+    `<div id="ptr">${createRadios(memSize, 'ptr')}</div>`,
+    `<div id="_ptr">${createRadios(memSize, '_ptr')}</div>`,
+    `<div id="value">${createRadios(halfByteSize, 'vu')}${createRadios(halfByteSize, 'vl')}</div>`,
+    '</div>',
     '<div id="mem">',
     sequence(memSize).map(ptr => {
-      const radioLabels = createRadioLabels(halfByteSize, [[`vu${ptr}-`, 'u'], [`vl${ptr}-`, 'l']], `L${ptr}`, [[`vu${ptr}-`, 0], [`vl${ptr}-`, 0], ['cu', 0], ['cu', -1], ['cu', +1], ['cl', 0], ['cl', -1], ['cl', +1]])
-      return `<div class="m" id="m${ptr}">${radioLabels}</div>`
+      const upper = createRadios(halfByteSize, `mu${ptr}-`, 'u')
+      const lower = createRadios(halfByteSize, `ml${ptr}-`, 'l')
+      return `<div class="m" id="m${ptr}">${upper}${lower}</div>`
     }).join('\n'),
+    '</div>',
+    '<div id="labels">',
     createLabels(stateSize, 'state'),
     createLabels(progSize, 'pc'),
     createLabels(progSize, '_pc'),
     createLabels(memSize, 'ptr'),
     createLabels(memSize, '_ptr'),
+    createLabels(halfByteSize, 'vu'),
+    createLabels(halfByteSize, 'vl'),
+    sequence(memSize).map(
+      ptr => createLabels(halfByteSize, `mu${ptr}-`) + createLabels(halfByteSize, `ml${ptr}-`)
+    ).join('\n'),
+    '</div>',
     `<div id="output"><div></div><label class="ok" for="state${State.after}">ok</label></div>`,
     kbhtml,
     '</div>',
@@ -271,12 +277,12 @@ function createKeyboard() {
     keysHTML,
     '</div>',
     '<div id="kblabels">',
-    sequence(halfByteSize).map(v => `<label id="KLcu${v}" for="cu${v}"></label>`).join(''),
-    sequence(halfByteSize).map(v => `<label id="KLcl${v}" for="cl${v}"></label>`).join(''),
+    sequence(halfByteSize).map(v => `<label id="KLvu${v}" for="vu${v}"></label>`).join(''),
+    sequence(halfByteSize).map(v => `<label id="KLvl${v}" for="vl${v}"></label>`).join(''),
     '</div>',
     '</div>'
   ].join('\n')
-  styles.push('#kb{height:0}')
+  styles.push('#kb{height:0;overflow:hidden;}')
   styles.push('#input label{width: 32px;height: 32px;font-size:20px;line-height:32px;margin:4px;box-shadow: 0 0 1px gray}')
   styles.push('#input #Kshift{width:0;height:0;position:absolute}')
   styles.push('#input #Kshift:checked+.keyboard-normal{display:none;}')
@@ -291,16 +297,16 @@ function createKeyboard() {
   styles.push('#input .ok{font-size: 20px;background: #aac;}')
   styles.push('#input .keyboard div{display:flex;justify-content:space-between;;width:610px;margin: 0 auto;}')
   for (const code of sequence(128)) {
-    styles.push(`#kb #K${code}:checked${stringMult('+*', 128-code - 1)}+#input .KL${code}{background:gray;color:white;}`)
+    styles.push(`#kb:has(#K${code}:checked) #input .KL${code}{background:gray;color:white;}`)
   }
   return [html, styles.join('\n')]
 }
-function stringMult(s, n) { return [...new Array(n + 1)].join(s) }
+
 function addKeyboardRules(rule) {
   for (const code of sequence(128)) {
-    const base = `#kb #K${code}:checked${stringMult('+*', 128 - code)}+#kblabels`
-    rule.add({ state: State.writeKB, currentU: ~(code >> 4) }, `${base} #KLcu${code >> 4}`)
-    rule.add({ state: State.writeKB, currentL: ~(code & 0xf) }, `${base} #KLcl${code & 0xf}`)
+    const base = `#kb:has(#K${code}:checked) #kblabels`
+    rule.add({ state: State.writeKB, vu: ~(code >> 4) }, `${base} #KLvu${code >> 4}`)
+    rule.add({ state: State.writeKB, vl: ~(code & 0xf) }, `${base} #KLvl${code & 0xf}`)
   }
 }
 
@@ -318,32 +324,30 @@ function generate(code, memSize = 8) {
     rule.add({ state: State.ptrReadDec, ptr, _ptr: ~(ptr - 1) }, `#L_ptr${ptr - 1}`)
     rule.add({ state: State.ptrReadInc, ptr, _ptr: ~(ptr + 1) }, `#L_ptr${ptr + 1}`)
     rule.add({ state: State.ptrWrite, _ptr: ptr, ptr: ~ptr }, `#Lptr${ptr}`)
-    rule.add({ ptr }, `#m${ptr} input:checked:before`, 'background:#faa')
-    // vu vl #Lvu #Lvl #cu-0 #cu-1 #cu+1 #cl-0 #cl-1 #cl+1
+    rule.add({ ptr }, `#m${ptr} input:checked::after`, 'background:#faa')
     for (let value of sequence(halfByteSize)) {
       const nextValue = (value + 1) % halfByteSize
-      const prevValue = (value + halfByteSize - 1) % halfByteSize
       const prefix = `#L${ptr}`
-      rule.add({ state: State.memWrite, ptr, currentU: value }, `#m${ptr} #vu${ptr}-${value}:not(:checked)+*+${prefix}vu${ptr}-${value}`)
-      rule.add({ state: State.memWrite, ptr, currentL: value }, `#m${ptr} #vl${ptr}-${value}:not(:checked)+*+${prefix}vl${ptr}-${value}`)
-      rule.add({ state: State.memRead, ptr, currentU: ~value }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
-      rule.add({ state: State.memRead, ptr, currentL: ~value }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+${prefix}cl${value}`)
-      rule.add({ state: State.memReadInc, ptr, currentL: ~nextValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+*+${prefix}cl${nextValue}`, priorityCSS(1))
-      rule.add({ state: State.memReadInc, ptr, currentU: ~nextValue, currentL: 0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+*+${prefix}cu${nextValue}`)
-      rule.add({ state: State.memReadInc, ptr, currentU: ~value, currentL: ~0 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
-      rule.add({ state: State.memReadDec, ptr, currentL: ~prevValue }, `#m${ptr} #vl${ptr}-${value}:checked+*+*+*+*+*+*+${prefix}cl${prevValue}`, priorityCSS(1))
-      rule.add({ state: State.memReadDec, ptr, currentU: ~prevValue, currentL: halfByteSize - 1 }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+*+${prefix}cu${prevValue}`)
-      rule.add({ state: State.memReadDec, ptr, currentU: ~value, currentL: ~(halfByteSize - 1) }, `#m${ptr} #vu${ptr}-${value}:checked+*+*+*+${prefix}cu${value}`)
+      rule.add({ state: State.memWrite, ptr, vu: value, [`mu${ptr}-`]: ~value }, `#Lmu${ptr}-${value}`)
+      rule.add({ state: State.memWrite, ptr, vl: value, [`ml${ptr}-`]: ~value }, `#Lml${ptr}-${value}`)
+      rule.add({ state: State.memRead, ptr, vu: ~value, [`mu${ptr}-`]: value }, `#Lvu${value}`)
+      rule.add({ state: State.memRead, ptr, vl: ~value, [`ml${ptr}-`]: value }, `#Lvl${value}`)
+      rule.add({ state: State.memReadInc, ptr, vl: ~nextValue, [`ml${ptr}-`]: value }, `#Lvl${nextValue}`, priorityCSS(1))
+      rule.add({ state: State.memReadInc, ptr, vu: ~nextValue, vl: 0, [`mu${ptr}-`]: value }, `#Lvu${nextValue}`)
+      rule.add({ state: State.memReadInc, ptr, vu: ~value, vl: ~0, [`mu${ptr}-`]: value }, `#Lvu${value}`)
+      rule.add({ state: State.memReadDec, ptr, vl: ~value, [`ml${ptr}-`]: nextValue }, `#Lvl${value}`, priorityCSS(1))
+      rule.add({ state: State.memReadDec, ptr, vu: ~value, vl: halfByteSize - 1, [`mu${ptr}-`]: nextValue }, `#Lvu${value}`)
+      rule.add({ state: State.memReadDec, ptr, vu: ~nextValue, vl: ~(halfByteSize - 1), [`mu${ptr}-`]: nextValue }, `#Lvu${nextValue}`)
     }
   }
   rule.add({ state: State.writeKB }, `#Lstate${State.after}`)
   rule.add({ state: State.output }, '#output')
-  for (let currentU of sequence(halfByteSize)) {
-    for (let currentL of sequence(halfByteSize)) {
-      const code = (currentU << 4) | currentL
-      const hex = `${currentU.toString(16)}${currentL.toString(16)}`.toUpperCase()
+  for (let valueUpper of sequence(halfByteSize)) {
+    for (let valueLower of sequence(halfByteSize)) {
+      const code = (valueUpper << 4) | valueLower
+      const hex = `${valueUpper.toString(16)}${valueLower.toString(16)}`.toUpperCase()
       const content = code <= 32 || code >= 127 ? `0x${hex}` : `\\${hex}  (0x${hex})`
-      rule.add({ state: State.output, currentU, currentL }, '#output div:after', `content: "${content}"`)
+      rule.add({ state: State.output, vu: valueUpper, vl: valueLower }, '#output div::after', `content: "${content}"`)
     }
   }
   rule.add({ state: State.input }, '#input')
@@ -366,7 +370,7 @@ function addBFRules(rule, operations) {
         rule.add({ pc, state: State.jump, _pc: ~pc }, `#L_pc${pc}`)
         rule.add({ pc, state: State.jump, _pc: pc }, `#Lstate${State.after}`)
         rule.add({ pc, state: State.after, _pc: pc }, `#L_pc${pc + 1}`, priorityCSS(-2))
-        rule.add({ pc, state: State.after, _pc: pc, currentU: 0, currentL: 0 }, `#L_pc${op[1] + 1}`, priorityCSS(-2))
+        rule.add({ pc, state: State.after, _pc: pc, vu: 0, vl: 0 }, `#L_pc${op[1] + 1}`, priorityCSS(-2))
         rule.add({ pc, state: State.after, _pc: ~pc }, `#Lstate${State.pcWrite}`, priorityCSS(-1))
         break
       case ']':
@@ -415,11 +419,11 @@ function addBFRules(rule, operations) {
 function createDesignStyle() {
   const styles = []
   for (const value of sequence(16)) {
-    const selector = ['input[name="cu"]', 'input[name="cl"]', '#mem input'].map(s => `${s}[value="${value}"]:before`).join(',')
+    const selector = ['#value input', '#mem input'].map(s => `${s}[value="${value}"]::after`).join(',')
     styles.push(`${selector}{content:"${value.toString(16).toUpperCase()}";}`)
   }
   for (const name in State) {
-    styles.push(`input[name="state"][value="${State[name]}"]:before{content:"${name}";}`)
+    styles.push(`#state${State[name]}::after{content:"${name}";}`)
   }
   return styles.join('\n')
 }
@@ -461,38 +465,20 @@ class Rule {
     this.progSize = progSize
     this.memSize = memSize
   }
-  add({ state, pc, _pc, ptr, _ptr, currentU, currentL }, selector, style = 'display: block;') {
-    const { progSize, memSize } = this
-    let idx = -1
+  add(options, selector, style = 'display: block;') {
     const selectors = []
-    const positions = [
-      [0, 'state', state],
-      [stateSize, 'pc', pc],
-      [stateSize + progSize, '_pc', _pc],
-      [stateSize + progSize * 2, 'ptr', ptr],
-      [stateSize + progSize * 2 + memSize, '_ptr', _ptr],
-      [stateSize + progSize * 2 + memSize * 2, 'cu', currentU],
-      [stateSize + progSize * 2 + memSize * 2 + halfByteSize, 'cl', currentL]
-    ]
-    for (const [offset, prefix, value] of positions) {
+    for (const key in options) {
+      const value = options[key]
       if (value == null) continue
-      const v = value < 0 ? ~value : value
-      const mode = value === v ? 'checked' : 'not(:checked)'
-      if (idx === -1) {
-        selectors.push(`#${prefix}${v}:${mode}`)
-      } else {
-        const diff = offset + v - idx
-        selectors.push(`${new Array(diff).fill('+*').join('')}:${mode}`) 
-      }
-      idx = offset + v
+      const v = value >= 0 ? value : ~value
+      const mode = value >= 0 ? 'checked' : 'not(:checked)'
+      selectors.push(`:has(#${key}${v}:${mode})`)
     }
-    if (idx === -1) {
-      selectors.push('#sub')
-    } else {
-      const diff = stateSize + 2 * progSize + 2 * memSize + 2 * halfByteSize - idx
-      selectors.push(`${new Array(diff-1).fill('+*').join('')}+#sub`)
+    if (selectors.length) {
+      selectors.unshift('body')
+      selectors.push(' ')
     }
-    this.styles.push([selectors.join('') + ' ' + selector, style])
+    this.styles.push([selectors.join('') + selector, style])
   }
   toCSS() {
     return this.styles.map(([selector, style]) => `${selector}{${style}}`).join('\n')
